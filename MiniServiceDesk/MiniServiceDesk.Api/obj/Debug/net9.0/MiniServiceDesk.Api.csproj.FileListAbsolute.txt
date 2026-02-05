@@ -1,0 +1,6 @@
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net9.0\MiniServiceDesk.Api.csproj.AssemblyReference.cache
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net9.0\MiniServiceDesk.Api.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net9.0\MiniServiceDesk.Api.AssemblyInfoInputs.cache
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net9.0\MiniServiceDesk.Api.AssemblyInfo.cs
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net9.0\MiniServiceDesk.Api.csproj.CoreCompileInputs.cache
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net9.0\MiniServiceDesk.Api.MvcApplicationPartsAssemblyInfo.cache

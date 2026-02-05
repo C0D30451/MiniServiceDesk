@@ -1,0 +1,61 @@
+@page "/tickets"
+@inject IHttpClientFactory HttpClientFactory
+
+<h3>Tickets</h3>
+
+<p>
+    <a href="/tickets/new">New ticket</a>
+</p>
+
+@* Se la lista è ancora null, vuol dire che la chiamata API non ha risposto *@
+@if (_tickets is null)
+{
+    <p>Loading...</p>
+}
+@* Se la lista esiste ma è vuota, non ci sono ticket *@
+else if (_tickets.Count == 0)
+{
+    <p>No tickets yet.</p>
+}
+@* Altrimenti mostriamo l’elenco dei ticket *@
+else
+{
+    <ul>
+        @foreach (var t in _tickets)
+        {
+            <li>
+                @* Link al dettaglio del ticket *@
+                <a href="/tickets/@t.Id">@t.Title</a>
+                — @t.Status — @t.Priority — @t.Category
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    // Lista dei ticket caricati dal backend; null finché non termina la fetch
+    private List<TicketDto>? _tickets;
+
+    // Metodo Blazor che si esegue all'inizializzazione del componente
+    protected override async Task OnInitializedAsync()
+    {
+        // Recupera un HttpClient configurato (nome "Api")
+        var client = HttpClientFactory.CreateClient("Api");
+
+        // Chiama GET api/tickets e deserializza la risposta in una lista di TicketDto
+        _tickets = await client.GetFromJsonAsync<List<TicketDto>>("api/tickets");
+    }
+
+    // DTO locale usato per deserializzare i dati ricevuti dalla API
+    private class TicketDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Category { get; set; } = "";
+        public int Priority { get; set; }
+        public int Status { get; set; }
+        public DateTime CreatedAtUtc { get; set; }
+        public DateTime UpdatedAtUtc { get; set; }
+    }
+}

@@ -1,0 +1,46 @@
+﻿@using MiniServiceDesk.Web.Services
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+@code {
+    private bool _collapsed = true;
+    private async Task Toggle() => _collapsed = !_collapsed;
+
+    private async Task Logout()
+    {
+        await Auth.LogoutAsync();
+        Nav.NavigateTo("/login", true);
+    }
+}
+
+<div class="d-flex flex-column flex-shrink-0 p-3 text-bg-dark" style="width: 220px; height: 100vh;">
+    <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none">
+        <span class="fs-4">MSD</span>
+    </a>
+    <hr>
+    <ul class="nav nav-pills flex-column mb-auto">
+        <li class="nav-item">
+            <NavLink class="nav-link text-white" href="/" Match="NavLinkMatch.All">
+                <i class="bi bi-house-door-fill me-2"></i>Home
+            </NavLink>
+        </li>
+        <li>
+            <NavLink class="nav-link text-white" href="/tickets">
+                <i class="bi bi-card-checklist me-2"></i>Tickets
+            </NavLink>
+        </li>
+    </ul>
+    <hr>
+    @if ((await Auth.GetSessionAsync()).IsAuthenticated)
+    {
+        <button class="btn btn-outline-light w-100" @onclick="Logout">
+            <i class="bi bi-box-arrow-right me-1"></i> Logout
+        </button>
+    }
+    else
+    {
+        <a class="btn btn-outline-light w-100" href="/login">
+            <i class="bi bi-box-arrow-in-right me-1"></i> Login
+        </a>
+    }
+</div>

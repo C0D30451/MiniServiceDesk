@@ -1,0 +1,47 @@
+@page "/tickets/{Id:int}"
+@inject IHttpClientFactory HttpClientFactory
+
+<h3>Ticket details</h3>
+
+@if (_ticket is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <p><b>@_ticket.Title</b></p>
+    <p>Status: @_ticket.Status</p>
+    <p>Priority: @_ticket.Priority</p>
+    <p>Category: @_ticket.Category</p>
+    <p>Created: @_ticket.CreatedAtUtc</p>
+
+    <p style="margin-top:12px">
+        @_ticket.Description
+    </p>
+
+    <p><a href="/tickets">Back</a></p>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private TicketDto? _ticket;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var client = HttpClientFactory.CreateClient("Api");
+        _ticket = await client.GetFromJsonAsync<TicketDto>($"api/tickets/{Id}");
+    }
+
+    private class TicketDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Category { get; set; } = "";
+        public int Priority { get; set; }
+        public int Status { get; set; }
+        public DateTime CreatedAtUtc { get; set; }
+        public DateTime UpdatedAtUtc { get; set; }
+    }
+}
