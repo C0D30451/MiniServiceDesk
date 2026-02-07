@@ -1,5 +1,6 @@
 @page "/tickets/new"
-@rendermode Microsoft.AspNetCore.Components.Web.RenderMode.InteractiveServer
+@namespace MiniServiceDesk.Web.Pages
+@rendermode InteractiveServer
 @inject IHttpClientFactory HttpClientFactory
 @inject NavigationManager Nav
 
@@ -31,6 +32,6 @@
 </div>
 
 <div style="margin-top:12px">
-    <button type="button" @onclick="Save">Save</button>
-    <button type="button" style="margin-left:8px" @onclick="Cancel">Cancel</button>
+    <button type="button" @onclick="HandleSaveClick">Save</button>
+    <a href="/tickets" style="margin-left:8px">Cancel</a>
 </div>

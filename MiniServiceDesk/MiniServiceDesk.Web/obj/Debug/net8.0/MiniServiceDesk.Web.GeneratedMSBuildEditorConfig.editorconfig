@@ -17,8 +17,6 @@ build_property.SupportLocalizedComponentNames =
 build_property.GenerateRazorMetadataSourceChecksumAttributes = 
 build_property.MSBuildProjectDirectory = C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web
 build_property._RazorSourceGeneratorDebug = 
-build_property.EffectiveAnalysisLevelStyle = 8.0
-build_property.EnableCodeStyleSeverity = 
 
 [C:/Users/dschi/TicketManager/MiniServiceDesk/MiniServiceDesk.Web/Components/App.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xBcHAucmF6b3I=
@@ -50,6 +48,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Users/dschi/TicketManager/MiniServiceDesk/MiniServiceDesk.Web/Pages/Tickets.razor]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGlja2V0cy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/dschi/TicketManager/MiniServiceDesk/MiniServiceDesk.Web/Pages/_Imports.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcX0ltcG9ydHMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/dschi/TicketManager/MiniServiceDesk/MiniServiceDesk.Web/Components/Layout/MainLayout.razor]

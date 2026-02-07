@@ -1,1 +1,11 @@
-{"Version":1,"Hash":"OI6ieEcQ/sy1y80/AapLi4EAMAQ9Q3pSrjC+tujHGUk=","Source":"MiniServiceDesk.Api","BasePath":"_content/MiniServiceDesk.Api","Mode":"Default","ManifestType":"Build","ReferencedProjectsConfiguration":[],"DiscoveryPatterns":[],"Assets":[],"Endpoints":[]}
+{
+  "Version": 1,
+  "Hash": "uGbYQFqff+hbkbFqnsTAi/4FA0QLPPC0KIDWSspk+Go=",
+  "Source": "MiniServiceDesk.Api",
+  "BasePath": "_content/MiniServiceDesk.Api",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}

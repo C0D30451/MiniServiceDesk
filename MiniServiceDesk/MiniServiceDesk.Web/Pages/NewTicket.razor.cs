@@ -1,5 +1,4 @@
 using System.Net.Http.Json;
-using System.Diagnostics;
 
 namespace MiniServiceDesk.Web.Pages;
 
@@ -17,25 +16,22 @@ public partial class NewTicket
     {
         _error = null;
 
-#if DEBUG
-        if (!Debugger.IsAttached)
-        {
-            _error = "Click ricevuto, ma debugger NON agganciato al processo Web.";
-            return;
-        }
-
-        Debugger.Break();
-#endif
-
         try
         {
             var client = HttpClientFactory.CreateClient("Api");
-            var resp = await client.PostAsJsonAsync("api/tickets", _model);
-
-            if (!resp.IsSuccessStatusCode)
+            try
             {
-                var body = await resp.Content.ReadAsStringAsync();
-                _error = $"API error: {(int)resp.StatusCode} {resp.ReasonPhrase}. {body}";
+                var resp = await client.PostAsJsonAsync("api/tickets", _model);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    var body = await resp.Content.ReadAsStringAsync();
+                    _error = $"API error: {(int)resp.StatusCode} {resp.ReasonPhrase}. {body}";
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                _error = $"Error calling API: {ex.Message}";
                 return;
             }
 
@@ -47,7 +43,7 @@ public partial class NewTicket
         }
     }
 
-    private void Cancel() => Nav.NavigateTo("/tickets");
+    private async Task HandleSaveClick() => await Save();
 
     private class CreateTicketRequest
     {

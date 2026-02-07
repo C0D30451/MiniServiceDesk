@@ -1,6 +1,5 @@
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\bin\Debug\net8.0\appsettings.Development.json
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\bin\Debug\net8.0\appsettings.json
-C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\bin\Debug\net8.0\MiniServiceDesk.Api.staticwebassets.endpoints.json
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\bin\Debug\net8.0\MiniServiceDesk.Api.exe
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\bin\Debug\net8.0\MiniServiceDesk.Api.deps.json
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\bin\Debug\net8.0\MiniServiceDesk.Api.runtimeconfig.json
@@ -112,7 +111,6 @@ C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\bin\Debug\net8.
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\bin\Debug\net8.0\runtimes\win-x64\native\e_sqlite3.dll
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\bin\Debug\net8.0\runtimes\win-x86\native\e_sqlite3.dll
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.csproj.AssemblyReference.cache
-C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\rpswa.dswa.cache.json
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.GeneratedMSBuildEditorConfig.editorconfig
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.AssemblyInfoInputs.cache
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.AssemblyInfo.cs
@@ -120,17 +118,17 @@ C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.MvcApplicationPartsAssemblyInfo.cs
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.MvcApplicationPartsAssemblyInfo.cache
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.sourcelink.json
-C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\rjimswa.dswa.cache.json
-C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\rjsmrazor.dswa.cache.json
-C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\rjsmcshtml.dswa.cache.json
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\scopedcss\bundle\MiniServiceDesk.Api.styles.css
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\staticwebassets.build.json
-C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\staticwebassets.build.json.cache
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\staticwebassets.development.json
-C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\staticwebassets.build.endpoints.json
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServ.06E1FE29.Up2Date
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.dll
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\refint\MiniServiceDesk.Api.dll
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.pdb
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.genruntimeconfig.cache
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\ref\MiniServiceDesk.Api.dll
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\staticwebassets\msbuild.MiniServiceDesk.Api.Microsoft.AspNetCore.StaticWebAssets.props
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\staticwebassets\msbuild.build.MiniServiceDesk.Api.props
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\staticwebassets\msbuild.buildMultiTargeting.MiniServiceDesk.Api.props
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\staticwebassets\msbuild.buildTransitive.MiniServiceDesk.Api.props
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\staticwebassets.pack.json
