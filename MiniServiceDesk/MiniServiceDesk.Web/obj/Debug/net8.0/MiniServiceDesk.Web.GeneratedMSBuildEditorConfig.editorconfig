@@ -46,10 +46,6 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGlja2V0RGV0YWlscy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/dschi/TicketManager/MiniServiceDesk/MiniServiceDesk.Web/Pages/Tickets.razor]
-build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGlja2V0cy5yYXpvcg==
-build_metadata.AdditionalFiles.CssScope = 
-
 [C:/Users/dschi/TicketManager/MiniServiceDesk/MiniServiceDesk.Web/Pages/_Imports.razor]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcX0ltcG9ydHMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
@@ -61,6 +57,10 @@ build_metadata.AdditionalFiles.CssScope = b-kksa70crta
 [C:/Users/dschi/TicketManager/MiniServiceDesk/MiniServiceDesk.Web/Components/Layout/NavMenu.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcTmF2TWVudS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = b-1v1qpcyef8
+
+[C:/Users/dschi/TicketManager/MiniServiceDesk/MiniServiceDesk.Web/Pages/Tickets.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGlja2V0cy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-39jh67aec8
 
 [C:/Users/dschi/TicketManager/MiniServiceDesk/MiniServiceDesk.Web/Pages/_Host.cshtml]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcX0hvc3QuY3NodG1s

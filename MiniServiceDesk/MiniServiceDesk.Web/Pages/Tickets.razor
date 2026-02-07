@@ -1,52 +1,90 @@
 @page "/tickets"
 @inject IHttpClientFactory HttpClientFactory
 
-<h3>Tickets</h3>
+<section class="page-shell">
+    <div class="page-head">
+        <h3 class="page-title">Tickets</h3>
+        <a class="btn btn-primary page-cta" href="/tickets/new">+ New ticket</a>
+    </div>
 
-<p>
-    <a href="/tickets/new">New ticket</a>
-</p>
-
-@* Se la lista è ancora null, vuol dire che la chiamata API non ha risposto *@
-@if (_tickets is null)
-{
-    <p>Loading...</p>
-}
-@* Se la lista esiste ma è vuota, non ci sono ticket *@
-else if (_tickets.Count == 0)
-{
-    <p>No tickets yet.</p>
-}
-@* Altrimenti mostriamo l’elenco dei ticket *@
-else
-{
-    <ul>
-        @foreach (var t in _tickets)
-        {
-            <li>
-                @* Link al dettaglio del ticket *@
-                <a href="/tickets/@t.Id">@t.Title</a>
-                — @t.Status — @t.Priority — @t.Category
-            </li>
-        }
-    </ul>
-}
+    @if (_tickets is null)
+    {
+        <p class="panel">Loading...</p>
+    }
+    else if (_tickets.Count == 0)
+    {
+        <p class="panel">No tickets yet.</p>
+    }
+    else
+    {
+        <div class="ticket-grid">
+            @foreach (var t in _tickets.OrderBy(t => t.Id))
+            {
+                <article class="ticket-card">
+                    <div class="ticket-card-head">
+                        <a class="ticket-title-link" href="/tickets/@t.Id">@t.Title</a>
+                        <span class="status-pill @StatusCss(t.Status)">@StatusLabel(t.Status)</span>
+                    </div>
+                    <div class="ticket-meta">
+                        <span class="priority-pill @PriorityCss(t.Priority)">@PriorityLabel(t.Priority)</span>
+                        <span class="meta-dot">•</span>
+                        <span>@t.Category</span>
+                        <span class="meta-dot">•</span>
+                        <span>#@t.Id</span>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+</section>
 
 @code {
-    // Lista dei ticket caricati dal backend; null finché non termina la fetch
     private List<TicketDto>? _tickets;
 
-    // Metodo Blazor che si esegue all'inizializzazione del componente
     protected override async Task OnInitializedAsync()
     {
-        // Recupera un HttpClient configurato (nome "Api")
         var client = HttpClientFactory.CreateClient("Api");
-
-        // Chiama GET api/tickets e deserializza la risposta in una lista di TicketDto
         _tickets = await client.GetFromJsonAsync<List<TicketDto>>("api/tickets");
     }
 
-    // DTO locale usato per deserializzare i dati ricevuti dalla API
+    private static string StatusLabel(int status) => status switch
+    {
+        0 => "Open",
+        1 => "In Progress",
+        2 => "Waiting",
+        3 => "Resolved",
+        4 => "Closed",
+        _ => $"Unknown ({status})"
+    };
+
+    private static string StatusCss(int status) => status switch
+    {
+        0 => "status-open",
+        1 => "status-progress",
+        2 => "status-waiting",
+        3 => "status-resolved",
+        4 => "status-closed",
+        _ => "status-unknown"
+    };
+
+    private static string PriorityLabel(int priority) => priority switch
+    {
+        0 => "Low",
+        1 => "Medium",
+        2 => "High",
+        3 => "Critical",
+        _ => $"P{priority}"
+    };
+
+    private static string PriorityCss(int priority) => priority switch
+    {
+        0 => "prio-low",
+        1 => "prio-medium",
+        2 => "prio-high",
+        3 => "prio-critical",
+        _ => "prio-unknown"
+    };
+
     private class TicketDto
     {
         public int Id { get; set; }
@@ -55,7 +93,7 @@ else
         public string Category { get; set; } = "";
         public int Priority { get; set; }
         public int Status { get; set; }
-        public DateTime CreatedAtUtc { get; set; }
-        public DateTime UpdatedAtUtc { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
     }
 }

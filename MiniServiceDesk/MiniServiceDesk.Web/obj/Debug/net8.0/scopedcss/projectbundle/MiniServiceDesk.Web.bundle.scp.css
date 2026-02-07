@@ -213,3 +213,74 @@ main[b-kksa70crta] {
         overflow-y: auto;
     }
 }
+/* _content/MiniServiceDesk.Web/Pages/Tickets.razor.rz.scp.css */
+.page-title[b-39jh67aec8] {
+    color: #f4f8ff;
+}
+
+.ticket-grid[b-39jh67aec8] {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+.ticket-card[b-39jh67aec8] {
+    position: relative;
+    padding: 1rem 1.1rem;
+    border-radius: 18px;
+    background: linear-gradient(165deg, #fcfeff, #eef5ff);
+    border: 1px solid #d8e2f0;
+    box-shadow: 0 14px 36px rgba(15, 30, 63, 0.16);
+    overflow: hidden;
+}
+
+.ticket-card[b-39jh67aec8]::before,
+.ticket-card[b-39jh67aec8]::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 22px;
+    height: 22px;
+    margin-top: -11px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0b1224, #111c34);
+}
+
+.ticket-card[b-39jh67aec8]::before {
+    left: -13px;
+}
+
+.ticket-card[b-39jh67aec8]::after {
+    right: -13px;
+}
+
+.ticket-card-head[b-39jh67aec8] {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.ticket-title-link[b-39jh67aec8] {
+    font-weight: 700;
+    color: #132c4a;
+    text-decoration: none;
+}
+
+.ticket-title-link:hover[b-39jh67aec8] {
+    text-decoration: underline;
+}
+
+.ticket-meta[b-39jh67aec8] {
+    margin-top: 0.7rem;
+    color: #4b5c7a;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    font-size: 0.92rem;
+}
+
+.meta-dot[b-39jh67aec8] {
+    color: #89a0bf;
+}

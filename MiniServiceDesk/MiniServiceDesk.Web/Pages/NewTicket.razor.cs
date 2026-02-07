@@ -4,6 +4,11 @@ namespace MiniServiceDesk.Web.Pages;
 
 public partial class NewTicket
 {
+    private const int TitleMinLength = 4;
+    private const int TitleMaxLength = 120;
+    private const int DescriptionMinLength = 10;
+    private const int DescriptionMaxLength = 4000;
+
     private string? _error;
 
     private CreateTicketRequest _model = new()
@@ -15,6 +20,28 @@ public partial class NewTicket
     private async Task Save()
     {
         _error = null;
+
+        _model.Title = _model.Title.Trim();
+        _model.Description = _model.Description.Trim();
+        _model.Category = _model.Category.Trim();
+
+        if (string.IsNullOrWhiteSpace(_model.Title) || string.IsNullOrWhiteSpace(_model.Description))
+        {
+            _error = "Title e Description sono obbligatori.";
+            return;
+        }
+
+        if (_model.Title.Length < TitleMinLength || _model.Title.Length > TitleMaxLength)
+        {
+            _error = $"Title deve avere tra {TitleMinLength} e {TitleMaxLength} caratteri.";
+            return;
+        }
+
+        if (_model.Description.Length < DescriptionMinLength || _model.Description.Length > DescriptionMaxLength)
+        {
+            _error = $"Description deve avere tra {DescriptionMinLength} e {DescriptionMaxLength} caratteri.";
+            return;
+        }
 
         try
         {

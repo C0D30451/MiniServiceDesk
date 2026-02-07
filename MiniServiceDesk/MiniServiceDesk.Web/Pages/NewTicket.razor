@@ -13,12 +13,12 @@
 
 <div>
     <label>Title</label><br />
-    <input @bind="_model.Title" />
+    <input @bind="_model.Title" required minlength="4" maxlength="120" />
 </div>
 
 <div style="margin-top:8px">
     <label>Description</label><br />
-    <textarea @bind="_model.Description" rows="6" cols="60"></textarea>
+    <textarea @bind="_model.Description" rows="6" cols="60" required minlength="10" maxlength="4000"></textarea>
 </div>
 
 <div style="margin-top:8px">

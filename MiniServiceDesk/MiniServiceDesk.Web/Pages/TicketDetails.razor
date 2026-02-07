@@ -1,26 +1,35 @@
 @page "/tickets/{Id:int}"
 @inject IHttpClientFactory HttpClientFactory
 
-<h3>Ticket details</h3>
+<section class="page-shell">
+    <h3 class="page-title">Ticket details</h3>
 
-@if (_ticket is null)
-{
-    <p>Loading...</p>
-}
-else
-{
-    <p><b>@_ticket.Title</b></p>
-    <p>Status: @_ticket.Status</p>
-    <p>Priority: @_ticket.Priority</p>
-    <p>Category: @_ticket.Category</p>
-    <p>Created: @_ticket.CreatedAtUtc</p>
+    @if (_ticket is null)
+    {
+        <p class="panel">Loading...</p>
+    }
+    else
+    {
+        <article class="detail-card">
+            <div class="detail-title-row">
+                <h4 class="detail-title">@_ticket.Title</h4>
+                <span class="status-pill @StatusCss(_ticket.Status)">@StatusLabel(_ticket.Status)</span>
+            </div>
 
-    <p style="margin-top:12px">
-        @_ticket.Description
-    </p>
+            <div class="detail-meta">
+                <span class="priority-pill @PriorityCss(_ticket.Priority)">@PriorityLabel(_ticket.Priority)</span>
+                <span class="meta-dot">•</span>
+                <span>@_ticket.Category</span>
+                <span class="meta-dot">•</span>
+                <span>Created @FormatDate(_ticket.CreatedAt)</span>
+            </div>
 
-    <p><a href="/tickets">Back</a></p>
-}
+            <p class="detail-description">@_ticket.Description</p>
+        </article>
+
+        <p class="back-link-wrap"><a href="/tickets">Back to tickets</a></p>
+    }
+</section>
 
 @code {
     [Parameter] public int Id { get; set; }
@@ -33,6 +42,54 @@ else
         _ticket = await client.GetFromJsonAsync<TicketDto>($"api/tickets/{Id}");
     }
 
+    private static string StatusLabel(int status) => status switch
+    {
+        0 => "Open",
+        1 => "In Progress",
+        2 => "Waiting",
+        3 => "Resolved",
+        4 => "Closed",
+        _ => $"Unknown ({status})"
+    };
+
+    private static string StatusCss(int status) => status switch
+    {
+        0 => "status-open",
+        1 => "status-progress",
+        2 => "status-waiting",
+        3 => "status-resolved",
+        4 => "status-closed",
+        _ => "status-unknown"
+    };
+
+    private static string PriorityLabel(int priority) => priority switch
+    {
+        0 => "Low",
+        1 => "Medium",
+        2 => "High",
+        3 => "Critical",
+        _ => $"P{priority}"
+    };
+
+    private static string PriorityCss(int priority) => priority switch
+    {
+        0 => "prio-low",
+        1 => "prio-medium",
+        2 => "prio-high",
+        3 => "prio-critical",
+        _ => "prio-unknown"
+    };
+
+    private static string FormatDate(DateTime dt)
+    {
+        if (dt == default)
+        {
+            return "-";
+        }
+
+        return dt.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+    }
+
     private class TicketDto
     {
         public int Id { get; set; }
@@ -41,7 +98,7 @@ else
         public string Category { get; set; } = "";
         public int Priority { get; set; }
         public int Status { get; set; }
-        public DateTime CreatedAtUtc { get; set; }
-        public DateTime UpdatedAtUtc { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
     }
 }
