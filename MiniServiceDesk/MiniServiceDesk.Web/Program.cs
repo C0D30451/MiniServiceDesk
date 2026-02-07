@@ -1,14 +1,16 @@
 using MiniServiceDesk.Web.Components;
+using Microsoft.AspNetCore.Components.Web;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddHttpClient("Api", client =>
 {
-    client.BaseAddress= new Uri(builder.Configuration["BaseUrl"]!);
+    client.BaseAddress = new Uri(builder.Configuration["Api:BaseUrl"]!);
 });
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+builder.Services.AddRazorPages();
+builder.Services.AddServerSideBlazor();
 
 var app = builder.Build();
 
@@ -24,9 +26,10 @@ app.UseHttpsRedirection();
 
 
 app.UseAntiforgery();
+app.UseStaticFiles();
+app.MapBlazorHub();          // segnala al framework di attivare SignalR
+app.MapRazorPages();   // <- aggiungi questa riga
+app.MapFallbackToPage("/_Host");
 
-app.MapStaticAssets();
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
 
 app.Run();

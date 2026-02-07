@@ -112,12 +112,17 @@ C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\bin\Debug\net8.
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\bin\Debug\net8.0\runtimes\win-x64\native\e_sqlite3.dll
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\bin\Debug\net8.0\runtimes\win-x86\native\e_sqlite3.dll
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.csproj.AssemblyReference.cache
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\rpswa.dswa.cache.json
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.GeneratedMSBuildEditorConfig.editorconfig
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.AssemblyInfoInputs.cache
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.AssemblyInfo.cs
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.csproj.CoreCompileInputs.cache
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.MvcApplicationPartsAssemblyInfo.cs
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\MiniServiceDesk.Api.sourcelink.json
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\rjimswa.dswa.cache.json
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\rjsmrazor.dswa.cache.json
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\rjsmcshtml.dswa.cache.json
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\scopedcss\bundle\MiniServiceDesk.Api.styles.css
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\staticwebassets.build.json
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Api\obj\Debug\net8.0\staticwebassets.build.json.cache

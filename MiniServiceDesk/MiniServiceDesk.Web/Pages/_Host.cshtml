@@ -1,0 +1,10 @@
+@page "/"
+@namespace MiniServiceDesk.Web.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@using MiniServiceDesk.Web.Components            @* <-- importa il ns che contiene App *@
+@{
+    Layout = "_Layout";
+}
+
+<component type="typeof(App)" render-mode="ServerPrerendered" />
+

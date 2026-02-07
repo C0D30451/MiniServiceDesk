@@ -81,6 +81,16 @@
     color: white;
 }
 
+.nav-item ::deep .nav-link:active {
+    background-color: rgba(255,255,255,0.25);
+    color: white;
+}
+
+.btn:active {
+    background-color: rgba(255,255,255,0.15);
+    color: #111;
+}
+
 .nav-scrollable {
     display: none;
 }

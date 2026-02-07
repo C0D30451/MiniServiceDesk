@@ -7,7 +7,8 @@ using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
 using System;
-
+using MiniServiceDesk.Api.Dtos;
+using System.Data.Common;
 namespace MiniServiceDesk.Api.Controllers;
 
 [ApiController]
@@ -43,16 +44,29 @@ public class TicketsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<Ticket>> Create([FromBody] Ticket input)
+    public async Task<ActionResult<Ticket>> Create(CreateTicketRequest body)
     {
-        input.Id = 0;
-        input.CreatedAt = DateTime.UtcNow;
-        input.UpdatedAt = DateTime.UtcNow;
-        input.Status = TicketStatus.Open;
-
+        var input = new Ticket
+        {
+            Title = body.Title,
+            Description = body.Description,
+            Category = body.Category,
+            Priority = (TicketPriority)body.Priority,
+            Status = TicketStatus.Open,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
         _db.Tickets.Add(input);
-        await _db.SaveChangesAsync();
+        {
+            input.Id = 0;
+            input.CreatedAt = DateTime.UtcNow;
+            input.UpdatedAt = DateTime.UtcNow;
+            input.Status = TicketStatus.Open;
 
-        return CreatedAtAction(nameof(GetById), new { id = input.Id }, input);
+            _db.Tickets.Add(input);
+            await _db.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetById), new { id = input.Id }, input);
+        }
     }
 }
