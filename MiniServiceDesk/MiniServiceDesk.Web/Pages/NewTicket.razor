@@ -1,4 +1,5 @@
 @page "/tickets/new"
+@rendermode Microsoft.AspNetCore.Components.Web.RenderMode.InteractiveServer
 @inject IHttpClientFactory HttpClientFactory
 @inject NavigationManager Nav
 
@@ -30,50 +31,6 @@
 </div>
 
 <div style="margin-top:12px">
-    <button @onclick="Save">Save</button>
-    <button style="margin-left:8px" @onclick="Cancel">Cancel</button>
+    <button type="button" @onclick="Save">Save</button>
+    <button type="button" style="margin-left:8px" @onclick="Cancel">Cancel</button>
 </div>
-
-@code {
-    private string? _error;
-
-    private CreateTicketRequest _model = new()
-    {
-        Category = "IT",
-        Priority = 1
-    };
-
-    private async Task Save()
-    {
-        _error = null;
-
-        try
-        {
-            var client = HttpClientFactory.CreateClient("Api");
-            var resp = await client.PostAsJsonAsync("api/tickets", _model);
-
-            if (!resp.IsSuccessStatusCode)
-            {
-                var body = await resp.Content.ReadAsStringAsync();
-                _error = $"API error: {(int)resp.StatusCode} {resp.ReasonPhrase}. {body}";
-                return;
-            }
-
-            Nav.NavigateTo("/tickets");
-        }
-        catch (Exception ex)
-        {
-            _error = ex.Message;
-        }
-    }
-
-    private void Cancel() => Nav.NavigateTo("/tickets");
-
-    private class CreateTicketRequest
-    {
-        public string Title { get; set; } = "";
-        public string Description { get; set; } = "";
-        public string Category { get; set; } = "";
-        public int Priority { get; set; }
-    }
-}

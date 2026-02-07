@@ -1,3 +1,4 @@
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\bin\Debug\net8.0\MiniServiceDesk.Web.dll
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\bin\Debug\net8.0\appsettings.Development.json
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\bin\Debug\net8.0\appsettings.json
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\bin\Debug\net8.0\libman.json
@@ -6,8 +7,6 @@ C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\bin\Debug\net8.
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\bin\Debug\net8.0\MiniServiceDesk.Web.exe
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\bin\Debug\net8.0\MiniServiceDesk.Web.deps.json
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\bin\Debug\net8.0\MiniServiceDesk.Web.runtimeconfig.json
-C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\bin\Debug\net8.0\MiniServiceDesk.Web.dll
-C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\bin\Debug\net8.0\MiniServiceDesk.Web.pdb
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\obj\Debug\net8.0\rpswa.dswa.cache.json
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\obj\Debug\net8.0\MiniServiceDesk.Web.GeneratedMSBuildEditorConfig.editorconfig
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\obj\Debug\net8.0\MiniServiceDesk.Web.AssemblyInfoInputs.cache
@@ -32,4 +31,5 @@ C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\obj\Debug\net8.
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\obj\Debug\net8.0\refint\MiniServiceDesk.Web.dll
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\obj\Debug\net8.0\MiniServiceDesk.Web.pdb
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\obj\Debug\net8.0\MiniServiceDesk.Web.genruntimeconfig.cache
+C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\bin\Debug\net8.0\MiniServiceDesk.Web.pdb
 C:\Users\dschi\TicketManager\MiniServiceDesk\MiniServiceDesk.Web\obj\Debug\net8.0\ref\MiniServiceDesk.Web.dll
