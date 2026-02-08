@@ -4,7 +4,7 @@
 @inject IHttpClientFactory HttpClientFactory
 @inject NavigationManager Nav
 
-<h3>New ticket</h3>
+<h3 class="page-title">New ticket</h3>
 
 @if (!string.IsNullOrWhiteSpace(_error))
 {
@@ -12,22 +12,22 @@
 }
 
 <div>
-    <label>Title</label><br />
+    <label style="color:#f4f8ff">Title</label><br />
     <input @bind="_model.Title" required minlength="4" maxlength="120" />
 </div>
 
 <div style="margin-top:8px">
-    <label>Description</label><br />
+    <label style="color:#f4f8ff">Description</label><br />
     <textarea @bind="_model.Description" rows="6" cols="60" required minlength="10" maxlength="4000"></textarea>
 </div>
 
 <div style="margin-top:8px">
-    <label>Category</label><br />
+    <label style="color:#f4f8ff">Category</label><br />
     <input @bind="_model.Category" />
 </div>
 
 <div style="margin-top:8px">
-    <label>Priority (0 Low, 1 Medium, 2 High, 3 Critical)</label><br />
+    <label style="color:#f4f8ff">Priority (0 Low, 1 Medium, 2 High, 3 Critical)</label><br />
     <input type="number" @bind="_model.Priority" />
 </div>
 
