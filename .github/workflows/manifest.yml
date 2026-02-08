@@ -1,0 +1,37 @@
+name: Update repo manifest
+
+on:
+  push:
+    branches: [ "main" ]
+    paths-ignore:
+      - "REPO_TREE.txt"
+
+permissions:
+  contents: write
+
+jobs:
+  manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Generate manifest (tracked files)
+        run: |
+          git ls-files --full-name \
+            | grep -vE '^(bin/|obj/|\.git/)' \
+            > REPO_TREE.txt
+
+      - name: Commit and push if changed
+        run: |
+          if git diff --quiet; then
+            echo "No changes in manifest."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add REPO_TREE.txt
+          git commit -m "chore: update REPO_TREE.txt"
+          git push
