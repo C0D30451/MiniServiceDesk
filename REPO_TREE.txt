@@ -12,7 +12,6 @@ MiniServiceDesk/MiniServiceDesk.Api/Program.cs
 MiniServiceDesk/MiniServiceDesk.Api/Properties/launchSettings.json
 MiniServiceDesk/MiniServiceDesk.Api/appsettings.Development.json
 MiniServiceDesk/MiniServiceDesk.Api/appsettings.json
-MiniServiceDesk/MiniServiceDesk.Api/mini_service_desk.db
 MiniServiceDesk/MiniServiceDesk.Api/models/Ticket.cs
 MiniServiceDesk/MiniServiceDesk.Api/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs
 MiniServiceDesk/MiniServiceDesk.Api/obj/Debug/net8.0/MiniServiceDesk.Api.GlobalUsings.g.cs
