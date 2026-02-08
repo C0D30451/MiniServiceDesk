@@ -15,3 +15,24 @@
 # OS files
 .DS_Store
 Thumbs.db
+
+@"
+# Build output
+bin/
+obj/
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Logs / temp
+*.log
+
+# Local databases / sqlite
+*.db
+*.db-shm
+*.db-wal
+"@ | Out-File -Encoding utf8 .gitignore -Append
+
