@@ -1,6 +1,14 @@
 # Build artifacts
 **/bin/
 **/obj/
+**/[Dd]ebug/
+**/[Rr]elease/
+**/publish/
+**/artifacts/
+**/TestResults/
+**/BenchmarkDotNet.Artifacts/
+*.nupkg
+*.snupkg
 
 # User-specific files
 *.user
@@ -12,27 +20,14 @@
 .vs/
 .vscode/
 
-# OS files
-.DS_Store
-Thumbs.db
-
-@"
-# Build output
-bin/
-obj/
-
-# Visual Studio / VS Code
-.vs/
-.vscode/
-*.user
-*.suo
-
-# Logs / temp
-*.log
-
-# Local databases / sqlite
+# Local databases
 *.db
 *.db-shm
 *.db-wal
-"@ | Out-File -Encoding utf8 .gitignore -Append
+*.sqlite
+*.sqlite3
+
+# OS files
+.DS_Store
+Thumbs.db
 
