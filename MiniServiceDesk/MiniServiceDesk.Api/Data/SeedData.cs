@@ -22,6 +22,7 @@ public static class SeedData
 
         await EnsureUser(userMgr, "demo.user", "Passw0rd!", "User");
         await EnsureUser(userMgr, "demo.agent", "Passw0rd!", "Agent");
+        await EnsureUser(userMgr, "demo.admin", "Passw0rd!", "Admin");
     }
 
     private static async Task EnsureUser(UserManager<IdentityUser> userMgr, string username, string password, string role)

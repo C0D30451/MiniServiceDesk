@@ -6,6 +6,16 @@
 <section class="page-shell">
     <h3 class="page-title">Ticket details</h3>
 
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <p class="panel" style="color:#ff9b9b">@_error</p>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_info))
+    {
+        <p class="panel" style="color:#9be7b5">@_info</p>
+    }
+
     @if (_ticket is null)
     {
         <p class="panel">Loading...</p>
@@ -24,10 +34,81 @@
                 <span>@_ticket.Category</span>
                 <span class="meta-dot">•</span>
                 <span>Created @FormatDate(_ticket.CreatedAt)</span>
+                @if (!string.IsNullOrWhiteSpace(_ticket.AssignedToUserName))
+                {
+                    <span class="meta-dot">•</span>
+                    <span>Assigned to @_ticket.AssignedToUserName</span>
+                }
             </div>
 
             <p class="detail-description">@_ticket.Description</p>
         </article>
+
+        <section class="panel" style="margin-top:14px">
+            <h5>Comments</h5>
+
+            @if (_comments.Count == 0)
+            {
+                <p style="opacity:.85">No comments yet.</p>
+            }
+            else
+            {
+                @foreach (var c in _comments)
+                {
+                    <article style="border-top:1px solid rgba(255,255,255,.12); padding:10px 0;">
+                        <div style="display:flex; justify-content:space-between; gap:10px; opacity:.9; font-size:.92rem;">
+                            <strong>@c.AuthorUserName</strong>
+                            <span>@FormatDate(c.CreatedAt)</span>
+                        </div>
+                        <p style="margin:6px 0 0; white-space:pre-wrap">@c.Text</p>
+                    </article>
+                }
+            }
+
+            <div style="margin-top:10px">
+                <label style="color:#f4f8ff">Add comment</label><br />
+                <textarea @bind="_commentText" rows="4" cols="70" maxlength="2000"></textarea>
+            </div>
+            <div style="margin-top:8px">
+                <button type="button" @onclick="AddCommentAsync" disabled="@_isSubmittingComment">Add comment</button>
+            </div>
+        </section>
+
+        @if (IsAgentOrAdmin)
+        {
+            <section class="panel" style="margin-top:14px">
+                <h5>Agent actions</h5>
+
+                <div>
+                    <label style="color:#f4f8ff">Assign to username</label><br />
+                    <input @bind="_assignUserName" placeholder="demo.agent" />
+                    <button type="button" style="margin-left:8px" @onclick="AssignAsync" disabled="@_isSubmittingAssign">Assign</button>
+                </div>
+
+                <div style="margin-top:12px">
+                    <label style="color:#f4f8ff">Change status</label><br />
+                    <select @bind="_newStatus">
+                        <option value="0">Open</option>
+                        <option value="1">In Progress</option>
+                        <option value="2">Waiting</option>
+                        <option value="3">Resolved</option>
+                        <option value="4">Closed</option>
+                    </select>
+                </div>
+
+                @if (RequiresStatusReason)
+                {
+                    <div style="margin-top:8px">
+                        <label style="color:#f4f8ff">Reason (required for Critical -> Waiting)</label><br />
+                        <textarea @bind="_statusReason" rows="3" cols="70"></textarea>
+                    </div>
+                }
+
+                <div style="margin-top:8px">
+                    <button type="button" @onclick="ChangeStatusAsync" disabled="@_isSubmittingStatus">Update status</button>
+                </div>
+            </section>
+        }
 
         <p class="back-link-wrap"><a href="/tickets">Back to tickets</a></p>
     }
@@ -37,28 +118,237 @@
     [Parameter] public int Id { get; set; }
 
     private TicketDto? _ticket;
+    private List<CommentDto> _comments = new();
+    private string _commentText = string.Empty;
+    private string _assignUserName = string.Empty;
+    private string _statusReason = string.Empty;
+    private int _newStatus;
+    private string? _error;
+    private string? _info;
+    private bool _isSubmittingComment;
+    private bool _isSubmittingAssign;
+    private bool _isSubmittingStatus;
+
+    private bool IsAgentOrAdmin => Auth.IsInRole("Agent") || Auth.IsInRole("Admin");
+    private bool RequiresStatusReason => _ticket?.Priority == 3 && _newStatus == 2;
 
     protected override async Task OnParametersSetAsync()
     {
         if (!Auth.IsAuthenticated)
         {
-            Nav.NavigateTo("/login");
+            Nav.NavigateTo("/login", replace: true);
             return;
         }
 
+        await LoadDetailsAsync();
+    }
+
+    private async Task LoadDetailsAsync()
+    {
+        _error = null;
+        _info = null;
+
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.GetAsync($"api/tickets/{Id}/details");
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                Auth.Clear();
+                Nav.NavigateTo("/login", replace: true);
+                return;
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                _error = "Ticket non trovato.";
+                _ticket = null;
+                _comments = new List<CommentDto>();
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var details = await response.Content.ReadAsStringAsync();
+                _error = $"Errore API ({(int)response.StatusCode}): {details}";
+                return;
+            }
+
+            var body = await response.Content.ReadFromJsonAsync<TicketDetailsResponse>();
+            if (body is null)
+            {
+                _error = "Risposta dettagli ticket non valida.";
+                return;
+            }
+
+            _ticket = body.Ticket;
+            _comments = body.Comments ?? new List<CommentDto>();
+            _newStatus = _ticket.Status;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Errore caricamento dettaglio: {ex.Message}";
+        }
+    }
+
+    private async Task AddCommentAsync()
+    {
+        if (_ticket is null || _isSubmittingComment)
+        {
+            return;
+        }
+
+        _error = null;
+        _info = null;
+
+        var text = (_commentText ?? string.Empty).Trim();
+        if (text.Length == 0)
+        {
+            _error = "Il commento e' obbligatorio.";
+            return;
+        }
+
+        _isSubmittingComment = true;
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.PostAsJsonAsync($"api/tickets/{Id}/comments", new { Text = text });
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                Auth.Clear();
+                Nav.NavigateTo("/login", replace: true);
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Commento non salvato ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            _commentText = string.Empty;
+            _info = "Commento aggiunto.";
+            await LoadDetailsAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Errore aggiunta commento: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmittingComment = false;
+        }
+    }
+
+    private async Task AssignAsync()
+    {
+        if (_ticket is null || _isSubmittingAssign)
+        {
+            return;
+        }
+
+        _error = null;
+        _info = null;
+
+        var userName = (_assignUserName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(userName))
+        {
+            _error = "Inserisci username assegnatario.";
+            return;
+        }
+
+        _isSubmittingAssign = true;
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.PostAsJsonAsync($"api/tickets/{Id}/assign", new { AssigneeUserName = userName });
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                Auth.Clear();
+                Nav.NavigateTo("/login", replace: true);
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Assegnazione fallita ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            _info = "Ticket assegnato.";
+            await LoadDetailsAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Errore assegnazione: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmittingAssign = false;
+        }
+    }
+
+    private async Task ChangeStatusAsync()
+    {
+        if (_ticket is null || _isSubmittingStatus)
+        {
+            return;
+        }
+
+        _error = null;
+        _info = null;
+
+        if (RequiresStatusReason && (_statusReason ?? string.Empty).Trim().Length < 5)
+        {
+            _error = "Per ticket Critical in Waiting serve una reason di almeno 5 caratteri.";
+            return;
+        }
+
+        _isSubmittingStatus = true;
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.PostAsJsonAsync($"api/tickets/{Id}/status", new
+            {
+                NewStatus = _newStatus,
+                Comment = string.IsNullOrWhiteSpace(_statusReason) ? null : _statusReason.Trim()
+            });
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                Auth.Clear();
+                Nav.NavigateTo("/login", replace: true);
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Cambio stato fallito ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            _statusReason = string.Empty;
+            _info = "Stato aggiornato.";
+            await LoadDetailsAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Errore cambio stato: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmittingStatus = false;
+        }
+    }
+
+    private HttpClient CreateAuthorizedClient()
+    {
         var client = HttpClientFactory.CreateClient("Api");
         client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", Auth.Token);
-
-        var response = await client.GetAsync($"api/tickets/{Id}");
-        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-        {
-            Auth.Clear();
-            Nav.NavigateTo("/login");
-            return;
-        }
-
-        response.EnsureSuccessStatusCode();
-        _ticket = await response.Content.ReadFromJsonAsync<TicketDto>();
+        return client;
     }
 
     private static string StatusLabel(int status) => status switch
@@ -109,15 +399,31 @@
         return dt.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
     }
 
-    private class TicketDto
+    private sealed class TicketDetailsResponse
+    {
+        public TicketDto Ticket { get; set; } = new();
+        public List<CommentDto>? Comments { get; set; }
+    }
+
+    private sealed class TicketDto
     {
         public int Id { get; set; }
-        public string Title { get; set; } = "";
-        public string Description { get; set; } = "";
-        public string Category { get; set; } = "";
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
         public int Priority { get; set; }
         public int Status { get; set; }
+        public string? AssignedToUserName { get; set; }
+        public DateTime? AssignedAt { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+    }
+
+    private sealed class CommentDto
+    {
+        public int Id { get; set; }
+        public string Text { get; set; } = string.Empty;
+        public string AuthorUserName { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
     }
 }
