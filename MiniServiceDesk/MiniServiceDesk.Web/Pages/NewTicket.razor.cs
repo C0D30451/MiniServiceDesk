@@ -17,9 +17,25 @@ public partial class NewTicket
         Priority = 1
     };
 
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !Auth.IsAuthenticated)
+        {
+            Nav.NavigateTo("/login", replace: true);
+        }
+
+        return Task.CompletedTask;
+    }
+
     private async Task Save()
     {
         _error = null;
+
+        if (!Auth.IsAuthenticated)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
 
         _model.Title = _model.Title.Trim();
         _model.Description = _model.Description.Trim();
@@ -46,9 +62,18 @@ public partial class NewTicket
         try
         {
             var client = HttpClientFactory.CreateClient("Api");
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", Auth.Token);
+
             try
             {
                 var resp = await client.PostAsJsonAsync("api/tickets", _model);
+                if (resp.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    Auth.Clear();
+                    Nav.NavigateTo("/login");
+                    return;
+                }
+
                 if (!resp.IsSuccessStatusCode)
                 {
                     var body = await resp.Content.ReadAsStringAsync();

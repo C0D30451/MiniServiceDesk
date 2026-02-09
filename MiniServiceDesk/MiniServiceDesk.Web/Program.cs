@@ -1,6 +1,9 @@
 using MiniServiceDesk.Web.Components;
+using MiniServiceDesk.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddScoped<AuthState>();
 
 builder.Services.AddHttpClient("Api", client =>
 {

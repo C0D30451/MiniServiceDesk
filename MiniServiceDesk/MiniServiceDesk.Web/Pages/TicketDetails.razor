@@ -1,5 +1,7 @@
 @page "/tickets/{Id:int}"
 @inject IHttpClientFactory HttpClientFactory
+@inject MiniServiceDesk.Web.Services.AuthState Auth
+@inject NavigationManager Nav
 
 <section class="page-shell">
     <h3 class="page-title">Ticket details</h3>
@@ -38,8 +40,25 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        if (!Auth.IsAuthenticated)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
         var client = HttpClientFactory.CreateClient("Api");
-        _ticket = await client.GetFromJsonAsync<TicketDto>($"api/tickets/{Id}");
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", Auth.Token);
+
+        var response = await client.GetAsync($"api/tickets/{Id}");
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            Auth.Clear();
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        response.EnsureSuccessStatusCode();
+        _ticket = await response.Content.ReadFromJsonAsync<TicketDto>();
     }
 
     private static string StatusLabel(int status) => status switch

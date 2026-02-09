@@ -1,0 +1,98 @@
+@page "/login"
+@rendermode InteractiveServer
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager Nav
+@inject MiniServiceDesk.Web.Services.AuthState Auth
+
+<h3 class="page-title">Login</h3>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <p style="color:red">@_error</p>
+}
+
+<div>
+    <label style="color:#f4f8ff">Username</label><br />
+    <input @bind="_userName" />
+</div>
+
+<div style="margin-top:8px">
+    <label style="color:#f4f8ff">Password</label><br />
+    <input type="password" @bind="_password" />
+</div>
+
+<div style="margin-top:12px">
+    <button type="button" @onclick="DoLogin" disabled="@_isSubmitting">
+        @(_isSubmitting ? "Login in corso..." : "Login")
+    </button>
+</div>
+
+<p style="margin-top:16px; opacity:0.85">
+    Demo: demo.user / Passw0rd! oppure demo.agent / Passw0rd!
+</p>
+
+@code {
+    private string _userName = string.Empty;
+    private string _password = string.Empty;
+    private string? _error;
+    private bool _isSubmitting;
+
+    private async Task DoLogin()
+    {
+        if (_isSubmitting)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_userName) || string.IsNullOrWhiteSpace(_password))
+        {
+            _error = "Inserisci username e password.";
+            return;
+        }
+
+        _isSubmitting = true;
+        _error = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("Api");
+            var response = await client.PostAsJsonAsync("api/auth/login", new
+            {
+                userName = _userName,
+                password = _password
+            });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var details = await response.Content.ReadAsStringAsync();
+                _error = $"Login fallito ({(int)response.StatusCode}). {details}";
+                return;
+            }
+
+            var body = await response.Content.ReadFromJsonAsync<LoginResponse>();
+            if (body is null || string.IsNullOrWhiteSpace(body.AccessToken))
+            {
+                _error = "Risposta login non valida.";
+                return;
+            }
+
+            Auth.Set(body.AccessToken, body.UserName ?? _userName, body.Roles ?? Array.Empty<string>());
+            Nav.NavigateTo("/tickets");
+        }
+        catch (Exception ex)
+        {
+            _error = $"Errore chiamata login: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private sealed class LoginResponse
+    {
+        public string AccessToken { get; set; } = string.Empty;
+        public string? UserName { get; set; }
+        public string[]? Roles { get; set; }
+    }
+}
