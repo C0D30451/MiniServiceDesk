@@ -48,6 +48,13 @@ public class Ticket
 
     public DateTime? AssignedAt { get; set; }
 
+    public int? TicketColumnId { get; set; }
+
+    [JsonIgnore]
+    public TicketColumn? TicketColumn { get; set; }
+
+    public int SortOrderInColumn { get; set; } = 0;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

@@ -25,11 +25,104 @@ public class TicketsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<Ticket>>> GetAll()
     {
+        var user = await GetCurrentUserAsync();
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        var currentUserId = user.Id;
+        var currentUserName = user.UserName ?? string.Empty;
+
         var tickets = await _db.Tickets
+            .AsNoTracking()
+            .Where(t =>
+                ((t.AssignedToUserName == null || t.AssignedToUserName == string.Empty) &&
+                 (t.AssignedToUserId == null || t.AssignedToUserId == string.Empty))
+                ||
+                (t.AssignedToUserName != null && t.AssignedToUserName != string.Empty && t.AssignedToUserName == currentUserName)
+                ||
+                ((t.AssignedToUserName == null || t.AssignedToUserName == string.Empty) &&
+                 t.AssignedToUserId == currentUserId))
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
 
         return Ok(tickets);
+    }
+
+    [HttpGet("all")]
+    [Authorize(Roles = "Agent,Admin")]
+    public async Task<ActionResult<TicketListResponse>> GetAllGlobal([FromQuery] TicketListQuery q)
+    {
+        var page = q.Page < 1 ? 1 : q.Page;
+        var pageSize = q.PageSize < 10 ? 10 : (q.PageSize > 100 ? 100 : q.PageSize);
+
+        IQueryable<Ticket> query = _db.Tickets
+            .AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(q.Search))
+        {
+            var s = q.Search.Trim();
+            query = query.Where(t =>
+                t.Title.Contains(s) ||
+                t.Description.Contains(s) ||
+                t.Category.Contains(s));
+        }
+
+        if (q.Status is not null)
+        {
+            query = query.Where(t => (int)t.Status == q.Status.Value);
+        }
+
+        if (q.Priority is not null)
+        {
+            query = query.Where(t => (int)t.Priority == q.Priority.Value);
+        }
+
+        if (q.UnassignedOnly == true)
+        {
+            query = query.Where(t =>
+                (t.AssignedToUserName == null || t.AssignedToUserName == string.Empty) &&
+                (t.AssignedToUserId == null || t.AssignedToUserId == string.Empty));
+        }
+
+        if (!string.IsNullOrWhiteSpace(q.AssignedTo))
+        {
+            var userName = q.AssignedTo.Trim();
+            query = query.Where(t => t.AssignedToUserName == userName);
+        }
+
+        if (q.CreatedFrom is not null)
+        {
+            query = query.Where(t => t.CreatedAt >= q.CreatedFrom.Value);
+        }
+
+        if (q.CreatedTo is not null)
+        {
+            query = query.Where(t => t.CreatedAt <= q.CreatedTo.Value);
+        }
+
+        var sort = (q.Sort ?? "created_desc").Trim().ToLowerInvariant();
+        query = sort switch
+        {
+            "updated_desc" => query.OrderByDescending(t => t.UpdatedAt),
+            "priority_desc" => query.OrderByDescending(t => (int)t.Priority).ThenByDescending(t => t.UpdatedAt),
+            _ => query.OrderByDescending(t => t.CreatedAt)
+        };
+
+        var total = await query.CountAsync();
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return Ok(new TicketListResponse
+        {
+            Items = items,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        });
     }
 
     [HttpGet("{id:int}")]
@@ -67,6 +160,11 @@ public class TicketsController : ControllerBase
     [Authorize(Roles = "User,Agent,Admin")]
     public async Task<ActionResult<Ticket>> Create(CreateTicketRequest body)
     {
+        var inboxMaxSort = await _db.Tickets
+            .Where(t => t.TicketColumnId == null)
+            .Select(t => (int?)t.SortOrderInColumn)
+            .MaxAsync() ?? 0;
+
         var ticket = new Ticket
         {
             Title = body.Title,
@@ -74,6 +172,7 @@ public class TicketsController : ControllerBase
             Category = body.Category,
             Priority = (TicketPriority)body.Priority,
             Status = TicketStatus.Open,
+            SortOrderInColumn = inboxMaxSort + 10,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -159,9 +258,9 @@ public class TicketsController : ControllerBase
         }
 
         var roles = await _userManager.GetRolesAsync(assignee);
-        if (!roles.Contains("Agent") && !roles.Contains("Admin"))
+        if (!roles.Contains("Agent") && !roles.Contains("Admin") && !roles.Contains("User"))
         {
-            return BadRequest("Assignee must be Agent or Admin.");
+            return BadRequest("Assignee must be User, Agent or Admin.");
         }
 
         ticket.AssignedToUserId = assignee.Id;
@@ -220,6 +319,124 @@ public class TicketsController : ControllerBase
         }
 
         ticket.Status = newStatus;
+        ticket.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    [HttpPost("reorder")]
+    [Authorize(Roles = "User,Agent,Admin")]
+    public async Task<ActionResult> Reorder(ReorderColumnRequest body)
+    {
+        if (body.OrderedTicketIds is null || body.OrderedTicketIds.Count == 0)
+        {
+            return BadRequest("No tickets provided.");
+        }
+
+        var distinctIds = body.OrderedTicketIds.Distinct().ToList();
+        if (distinctIds.Count != body.OrderedTicketIds.Count)
+        {
+            return BadRequest("Duplicate ticket ids are not allowed.");
+        }
+
+        if (body.TicketColumnId is not null)
+        {
+            var user = await GetCurrentUserAsync();
+            if (user is null)
+            {
+                return Unauthorized();
+            }
+
+            var ownsColumn = await _db.TicketColumns.AnyAsync(c =>
+                c.Id == body.TicketColumnId.Value &&
+                c.OwnerUserId == user.Id);
+
+            if (!ownsColumn)
+            {
+                return BadRequest("Invalid column.");
+            }
+        }
+
+        var tickets = await _db.Tickets
+            .Where(t => distinctIds.Contains(t.Id))
+            .ToListAsync();
+
+        if (tickets.Count != distinctIds.Count)
+        {
+            return BadRequest("Some tickets were not found.");
+        }
+
+        foreach (var ticket in tickets)
+        {
+            if (ticket.TicketColumnId != body.TicketColumnId)
+            {
+                return BadRequest("Ticket list must belong to the same column.");
+            }
+
+            if (ticket.Status == TicketStatus.Closed)
+            {
+                return BadRequest("Closed tickets cannot be reordered.");
+            }
+        }
+
+        for (var i = 0; i < body.OrderedTicketIds.Count; i++)
+        {
+            var ticketId = body.OrderedTicketIds[i];
+            var ticket = tickets.First(t => t.Id == ticketId);
+
+            ticket.SortOrderInColumn = (i + 1) * 10;
+            ticket.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpPatch("{id:int}/move")]
+    [Authorize(Roles = "User,Agent,Admin")]
+    public async Task<ActionResult> MoveTicket(int id, MoveTicketRequest body)
+    {
+        var ticket = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == id);
+        if (ticket is null)
+        {
+            return NotFound();
+        }
+
+        if (ticket.Status == TicketStatus.Closed)
+        {
+            return BadRequest("Closed tickets cannot be modified.");
+        }
+
+        if (body.TicketColumnId is not null)
+        {
+            var user = await GetCurrentUserAsync();
+            if (user is null)
+            {
+                return Unauthorized();
+            }
+
+            var isValidColumn = await _db.TicketColumns.AnyAsync(c =>
+                c.Id == body.TicketColumnId.Value &&
+                c.OwnerUserId == user.Id);
+
+            if (!isValidColumn)
+            {
+                return BadRequest("Invalid column.");
+            }
+        }
+
+        if (ticket.TicketColumnId != body.TicketColumnId)
+        {
+            var maxSort = await _db.Tickets
+                .Where(t => t.TicketColumnId == body.TicketColumnId)
+                .Select(t => (int?)t.SortOrderInColumn)
+                .MaxAsync() ?? 0;
+
+            ticket.SortOrderInColumn = maxSort + 10;
+        }
+
+        ticket.TicketColumnId = body.TicketColumnId;
         ticket.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
