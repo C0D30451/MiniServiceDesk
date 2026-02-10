@@ -1,5 +1,12 @@
-﻿@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Routing
+@inject MiniServiceDesk.Web.Services.AuthState Auth
+@implements IDisposable
+
+@{
+    var isAgentOrAdmin = Auth.IsInRole("Agent") || Auth.IsInRole("Admin");
+    var isAdmin = Auth.IsInRole("Admin");
+}
 
 <nav class="topbar shadow-sm bg-dark">
     <div class="container-fluid d-flex flex-column align-items-start gap-3 py-3">
@@ -23,12 +30,33 @@
                     <span class="ms-1">Ticket</span>
                 </NavLink>
             </li>
-            <li class="nav-item">
-                <NavLink class="nav-link link-light" href="tickets/all">
-                    <i class="bi-kanban"></i>
-                    <span class="ms-1">All Tickets</span>
-                </NavLink>
-            </li>
+
+            @if (isAgentOrAdmin)
+            {
+                <li class="nav-item">
+                    <NavLink class="nav-link link-light" href="tickets/all">
+                        <i class="bi-kanban"></i>
+                        <span class="ms-1">All Tickets</span>
+                    </NavLink>
+                </li>
+                <li class="nav-item">
+                    <NavLink class="nav-link link-light" href="dashboard/agents">
+                        <i class="bi-people"></i>
+                        <span class="ms-1">Agent Workload</span>
+                    </NavLink>
+                </li>
+            }
+
+            @if (isAdmin)
+            {
+                <li class="nav-item">
+                    <NavLink class="nav-link link-light" href="admin/config">
+                        <i class="bi-gear"></i>
+                        <span class="ms-1">Admin Config</span>
+                    </NavLink>
+                </li>
+            }
+
             <li class="nav-item">
                 <NavLink class="nav-link link-light" href="login">
                     <i class="bi-person-circle"></i>
@@ -44,3 +72,20 @@
         </NavLink>
     </div>
 </nav>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Auth.OnChange += HandleAuthChanged;
+    }
+
+    private void HandleAuthChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Auth.OnChange -= HandleAuthChanged;
+    }
+}

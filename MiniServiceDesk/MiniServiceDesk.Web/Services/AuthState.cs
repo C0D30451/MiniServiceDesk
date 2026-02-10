@@ -2,6 +2,8 @@ namespace MiniServiceDesk.Web.Services;
 
 public sealed class AuthState
 {
+    public event Action? OnChange;
+
     public string? Token { get; private set; }
     public string? UserName { get; private set; }
     public string[] Roles { get; private set; } = Array.Empty<string>();
@@ -13,6 +15,7 @@ public sealed class AuthState
         Token = token;
         UserName = userName;
         Roles = roles;
+        OnChange?.Invoke();
     }
 
     public void Clear()
@@ -20,6 +23,7 @@ public sealed class AuthState
         Token = null;
         UserName = null;
         Roles = Array.Empty<string>();
+        OnChange?.Invoke();
     }
 
     public bool IsInRole(string role) => Roles.Contains(role);

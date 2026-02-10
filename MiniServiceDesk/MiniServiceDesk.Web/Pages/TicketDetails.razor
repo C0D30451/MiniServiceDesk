@@ -80,10 +80,21 @@
                 <h5>Agent actions</h5>
 
                 <div>
-                    <label style="color:#f4f8ff">Assign to username</label><br />
-                    <input @bind="_assignUserName" placeholder="demo.agent" />
+                    <label style="color:#f4f8ff">Assign to agent</label><br />
+                    <select @bind="_assignUserName">
+                        <option value="">(select agent)</option>
+                        @foreach (var agent in _assignableAgents)
+                        {
+                            <option value="@agent">@agent</option>
+                        }
+                    </select>
                     <button type="button" style="margin-left:8px" @onclick="AssignAsync" disabled="@_isSubmittingAssign">Assign</button>
                 </div>
+
+                @if (_assignableAgents.Count == 0)
+                {
+                    <p style="margin-top:8px; opacity:.85">Nessun agente disponibile.</p>
+                }
 
                 <div style="margin-top:12px">
                     <label style="color:#f4f8ff">Change status</label><br />
@@ -110,6 +121,24 @@
             </section>
         }
 
+        @if (IsAdmin)
+        {
+            <section class="panel" style="margin-top:14px">
+                <h5>Admin actions</h5>
+
+                @if (!_confirmDelete)
+                {
+                    <button type="button" style="background:#9a2a2a; color:white;" @onclick="PrepareDelete">Delete ticket</button>
+                }
+                else
+                {
+                    <p style="margin-top:8px;">Confermi eliminazione ticket #@_ticket.Id?</p>
+                    <button type="button" style="background:#9a2a2a; color:white;" @onclick="DeleteTicketAsync" disabled="@_isDeleting">Conferma delete</button>
+                    <button type="button" style="margin-left:8px;" @onclick="CancelDelete">Annulla</button>
+                }
+            </section>
+        }
+
         <p class="back-link-wrap"><a href="/tickets">Back to tickets</a></p>
     }
 </section>
@@ -119,6 +148,7 @@
 
     private TicketDto? _ticket;
     private List<CommentDto> _comments = new();
+    private List<string> _assignableAgents = new();
     private string _commentText = string.Empty;
     private string _assignUserName = string.Empty;
     private string _statusReason = string.Empty;
@@ -128,8 +158,11 @@
     private bool _isSubmittingComment;
     private bool _isSubmittingAssign;
     private bool _isSubmittingStatus;
+    private bool _isDeleting;
+    private bool _confirmDelete;
 
     private bool IsAgentOrAdmin => Auth.IsInRole("Agent") || Auth.IsInRole("Admin");
+    private bool IsAdmin => Auth.IsInRole("Admin");
     private bool RequiresStatusReason => _ticket?.Priority == 3 && _newStatus == 2;
 
     protected override async Task OnParametersSetAsync()
@@ -140,7 +173,49 @@
             return;
         }
 
+        if (IsAgentOrAdmin)
+        {
+            await LoadAssignableAgentsAsync();
+        }
+
         await LoadDetailsAsync();
+    }
+
+    private async Task LoadAssignableAgentsAsync()
+    {
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.GetAsync("api/users/agents");
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                Auth.Clear();
+                Nav.NavigateTo("/login", replace: true);
+                return;
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return;
+            }
+
+            var list = await response.Content.ReadFromJsonAsync<List<string>>() ?? new List<string>();
+            _assignableAgents = list
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch
+        {
+            // Optional enhancement, keep details page usable.
+        }
     }
 
     private async Task LoadDetailsAsync()
@@ -168,6 +243,14 @@
                 return;
             }
 
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                _error = "Non hai accesso a questo ticket.";
+                _ticket = null;
+                _comments = new List<CommentDto>();
+                return;
+            }
+
             if (!response.IsSuccessStatusCode)
             {
                 var details = await response.Content.ReadAsStringAsync();
@@ -185,6 +268,17 @@
             _ticket = body.Ticket;
             _comments = body.Comments ?? new List<CommentDto>();
             _newStatus = _ticket.Status;
+            _confirmDelete = false;
+
+            if (!string.IsNullOrWhiteSpace(_ticket.AssignedToUserName) &&
+                !_assignableAgents.Contains(_ticket.AssignedToUserName, StringComparer.OrdinalIgnoreCase))
+            {
+                _assignableAgents.Add(_ticket.AssignedToUserName);
+                _assignableAgents = _assignableAgents
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
         }
         catch (Exception ex)
         {
@@ -255,7 +349,7 @@
         var userName = (_assignUserName ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(userName))
         {
-            _error = "Inserisci username assegnatario.";
+            _error = "Seleziona un agente.";
             return;
         }
 
@@ -341,6 +435,71 @@
         finally
         {
             _isSubmittingStatus = false;
+        }
+    }
+
+    private void PrepareDelete()
+    {
+        _confirmDelete = true;
+        _error = null;
+        _info = null;
+    }
+
+    private void CancelDelete()
+    {
+        _confirmDelete = false;
+    }
+
+    private async Task DeleteTicketAsync()
+    {
+        if (!IsAdmin || _ticket is null || _isDeleting)
+        {
+            return;
+        }
+
+        _error = null;
+        _info = null;
+        _isDeleting = true;
+
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.DeleteAsync($"api/tickets/{Id}");
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                Auth.Clear();
+                Nav.NavigateTo("/login", replace: true);
+                return;
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                _error = "Operazione consentita solo ad Admin.";
+                return;
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                _error = "Ticket non trovato.";
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Delete fallita ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            Nav.NavigateTo("/tickets/all", replace: true);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Errore delete ticket: {ex.Message}";
+        }
+        finally
+        {
+            _isDeleting = false;
         }
     }
 

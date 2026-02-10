@@ -33,19 +33,61 @@ public class TicketsController : ControllerBase
 
         var currentUserId = user.Id;
         var currentUserName = user.UserName ?? string.Empty;
+        var isAgentOrAdmin = User.IsInRole("Agent") || User.IsInRole("Admin");
 
-        var tickets = await _db.Tickets
-            .AsNoTracking()
-            .Where(t =>
-                ((t.AssignedToUserName == null || t.AssignedToUserName == string.Empty) &&
-                 (t.AssignedToUserId == null || t.AssignedToUserId == string.Empty))
+        IQueryable<Ticket> visibleQuery = _db.Tickets.AsNoTracking();
+        if (isAgentOrAdmin)
+        {
+            visibleQuery = visibleQuery.Where(t =>
+                (
+                    (t.CreatedByUserId != null && t.CreatedByUserId != string.Empty && t.CreatedByUserId == currentUserId)
+                    ||
+                    ((t.CreatedByUserId == null || t.CreatedByUserId == string.Empty) &&
+                     t.CreatedByUserName != null && t.CreatedByUserName != string.Empty &&
+                     t.CreatedByUserName == currentUserName)
+                )
                 ||
-                (t.AssignedToUserName != null && t.AssignedToUserName != string.Empty && t.AssignedToUserName == currentUserName)
+                (
+                    (t.AssignedToUserName != null && t.AssignedToUserName != string.Empty &&
+                     t.AssignedToUserName == currentUserName)
+                    ||
+                    ((t.AssignedToUserName == null || t.AssignedToUserName == string.Empty) &&
+                     t.AssignedToUserId != null && t.AssignedToUserId != string.Empty &&
+                     t.AssignedToUserId == currentUserId)
+                )
                 ||
                 ((t.AssignedToUserName == null || t.AssignedToUserName == string.Empty) &&
-                 t.AssignedToUserId == currentUserId))
+                 (t.AssignedToUserId == null || t.AssignedToUserId == string.Empty)));
+        }
+        else
+        {
+            visibleQuery = visibleQuery.Where(t =>
+                (t.CreatedByUserId != null && t.CreatedByUserId != string.Empty && t.CreatedByUserId == currentUserId)
+                ||
+                ((t.CreatedByUserId == null || t.CreatedByUserId == string.Empty) &&
+                 t.CreatedByUserName != null && t.CreatedByUserName != string.Empty &&
+                 t.CreatedByUserName == currentUserName));
+        }
+
+        var tickets = await visibleQuery
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
+
+        // Board columns are user-owned; tickets linked to foreign columns must appear in Inbox.
+        var myColumnIds = await _db.TicketColumns
+            .AsNoTracking()
+            .Where(c => c.OwnerUserId == currentUserId)
+            .Select(c => c.Id)
+            .ToListAsync();
+        var myColumnSet = myColumnIds.ToHashSet();
+
+        foreach (var ticket in tickets)
+        {
+            if (ticket.TicketColumnId is not null && !myColumnSet.Contains(ticket.TicketColumnId.Value))
+            {
+                ticket.TicketColumnId = null;
+            }
+        }
 
         return Ok(tickets);
     }
@@ -128,19 +170,48 @@ public class TicketsController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Ticket>> GetById(int id)
     {
-        var ticket = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == id);
-        return ticket is null ? NotFound() : Ok(ticket);
-    }
+        var user = await GetCurrentUserAsync();
+        if (user is null)
+        {
+            return Unauthorized();
+        }
 
-    [HttpGet("{id:int}/details")]
-    public async Task<ActionResult<TicketDetailsResponse>> GetDetails(int id)
-    {
         var ticket = await _db.Tickets
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == id);
         if (ticket is null)
         {
             return NotFound();
+        }
+
+        if (!CanAccessDetails(user, ticket))
+        {
+            return Forbid();
+        }
+
+        return Ok(ticket);
+    }
+
+    [HttpGet("{id:int}/details")]
+    public async Task<ActionResult<TicketDetailsResponse>> GetDetails(int id)
+    {
+        var user = await GetCurrentUserAsync();
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        var ticket = await _db.Tickets
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == id);
+        if (ticket is null)
+        {
+            return NotFound();
+        }
+
+        if (!CanAccessDetails(user, ticket))
+        {
+            return Forbid();
         }
 
         var comments = await _db.TicketComments
@@ -156,10 +227,32 @@ public class TicketsController : ControllerBase
         });
     }
 
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> Delete(int id)
+    {
+        var ticket = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == id);
+        if (ticket is null)
+        {
+            return NotFound();
+        }
+
+        _db.Tickets.Remove(ticket);
+        await _db.SaveChangesAsync();
+
+        return NoContent();
+    }
+
     [HttpPost]
     [Authorize(Roles = "User,Agent,Admin")]
     public async Task<ActionResult<Ticket>> Create(CreateTicketRequest body)
     {
+        var currentUser = await GetCurrentUserAsync();
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
         var inboxMaxSort = await _db.Tickets
             .Where(t => t.TicketColumnId == null)
             .Select(t => (int?)t.SortOrderInColumn)
@@ -172,6 +265,8 @@ public class TicketsController : ControllerBase
             Category = body.Category,
             Priority = (TicketPriority)body.Priority,
             Status = TicketStatus.Open,
+            CreatedByUserId = currentUser.Id,
+            CreatedByUserName = currentUser.UserName,
             SortOrderInColumn = inboxMaxSort + 10,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -213,6 +308,11 @@ public class TicketsController : ControllerBase
         if (user is null)
         {
             return Unauthorized();
+        }
+
+        if (!CanAccessDetails(user, ticket))
+        {
+            return Forbid();
         }
 
         _db.TicketComments.Add(new TicketComment
@@ -340,17 +440,17 @@ public class TicketsController : ControllerBase
             return BadRequest("Duplicate ticket ids are not allowed.");
         }
 
+        var currentUser = await GetCurrentUserAsync();
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
         if (body.TicketColumnId is not null)
         {
-            var user = await GetCurrentUserAsync();
-            if (user is null)
-            {
-                return Unauthorized();
-            }
-
             var ownsColumn = await _db.TicketColumns.AnyAsync(c =>
                 c.Id == body.TicketColumnId.Value &&
-                c.OwnerUserId == user.Id);
+                c.OwnerUserId == currentUser.Id);
 
             if (!ownsColumn)
             {
@@ -369,6 +469,11 @@ public class TicketsController : ControllerBase
 
         foreach (var ticket in tickets)
         {
+            if (!CanAccessBoardTicket(currentUser, ticket))
+            {
+                return Forbid();
+            }
+
             if (ticket.TicketColumnId != body.TicketColumnId)
             {
                 return BadRequest("Ticket list must belong to the same column.");
@@ -397,10 +502,21 @@ public class TicketsController : ControllerBase
     [Authorize(Roles = "User,Agent,Admin")]
     public async Task<ActionResult> MoveTicket(int id, MoveTicketRequest body)
     {
+        var currentUser = await GetCurrentUserAsync();
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
         var ticket = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == id);
         if (ticket is null)
         {
             return NotFound();
+        }
+
+        if (!CanAccessBoardTicket(currentUser, ticket))
+        {
+            return Forbid();
         }
 
         if (ticket.Status == TicketStatus.Closed)
@@ -410,15 +526,9 @@ public class TicketsController : ControllerBase
 
         if (body.TicketColumnId is not null)
         {
-            var user = await GetCurrentUserAsync();
-            if (user is null)
-            {
-                return Unauthorized();
-            }
-
             var isValidColumn = await _db.TicketColumns.AnyAsync(c =>
                 c.Id == body.TicketColumnId.Value &&
-                c.OwnerUserId == user.Id);
+                c.OwnerUserId == currentUser.Id);
 
             if (!isValidColumn)
             {
@@ -442,6 +552,50 @@ public class TicketsController : ControllerBase
 
         return NoContent();
     }
+
+    private bool CanAccessBoardTicket(IdentityUser currentUser, Ticket ticket)
+    {
+        var currentUserName = currentUser.UserName ?? string.Empty;
+        var isCreatedByCurrent = MatchesUser(ticket.CreatedByUserId, ticket.CreatedByUserName, currentUser.Id, currentUserName);
+        if (!IsAgentOrAdmin())
+        {
+            return isCreatedByCurrent;
+        }
+
+        var isAssignedToCurrent = MatchesUser(ticket.AssignedToUserId, ticket.AssignedToUserName, currentUser.Id, currentUserName);
+        var isUnassigned = string.IsNullOrWhiteSpace(ticket.AssignedToUserId) &&
+                           string.IsNullOrWhiteSpace(ticket.AssignedToUserName);
+        return isCreatedByCurrent || isAssignedToCurrent || isUnassigned;
+    }
+
+    private bool CanAccessDetails(IdentityUser currentUser, Ticket ticket)
+    {
+        if (IsAgentOrAdmin())
+        {
+            // Agent/Admin can open any ticket from the global list.
+            return true;
+        }
+
+        var currentUserName = currentUser.UserName ?? string.Empty;
+        return MatchesUser(ticket.CreatedByUserId, ticket.CreatedByUserName, currentUser.Id, currentUserName);
+    }
+
+    private static bool MatchesUser(string? candidateUserId, string? candidateUserName, string currentUserId, string currentUserName)
+    {
+        if (!string.IsNullOrWhiteSpace(candidateUserId))
+        {
+            return candidateUserId == currentUserId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(candidateUserName))
+        {
+            return string.Equals(candidateUserName, currentUserName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
+    }
+
+    private bool IsAgentOrAdmin() => User.IsInRole("Agent") || User.IsInRole("Admin");
 
     private async Task<IdentityUser?> GetCurrentUserAsync()
     {

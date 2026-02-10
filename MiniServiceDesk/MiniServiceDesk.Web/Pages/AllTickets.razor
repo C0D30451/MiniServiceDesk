@@ -64,7 +64,23 @@ else
 
         <div>
             <label style="color:#f4f8ff; font-size:12px;">Assigned to</label><br />
-            <input @bind="_assignedTo" placeholder="username (es: demo.agent)" />
+            <select @bind="_assignedTo">
+                <option value="">(any)</option>
+                @foreach (var a in _assignableAgents)
+                {
+                    <option value="@a">@a</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label style="color:#f4f8ff; font-size:12px;">Created from</label><br />
+            <input type="date" value="@_createdFrom" @onchange="OnCreatedFromChanged" />
+        </div>
+
+        <div>
+            <label style="color:#f4f8ff; font-size:12px;">Created to</label><br />
+            <input type="date" value="@_createdTo" @onchange="OnCreatedToChanged" />
         </div>
 
         <div>
@@ -128,8 +144,11 @@ else
     private string _status = string.Empty;
     private string _priority = string.Empty;
     private string _assignedTo = string.Empty;
+    private string _createdFrom = string.Empty;
+    private string _createdTo = string.Empty;
     private bool _unassignedOnly;
     private string _sort = "created_desc";
+    private List<string> _assignableAgents = new();
 
     private int _page = 1;
     private int _pageSize = 25;
@@ -139,6 +158,7 @@ else
 
     private int _summaryTotal;
     private int _summaryUnassigned;
+    private bool IsAgentOrAdmin => Auth.IsInRole("Agent") || Auth.IsInRole("Admin");
 
     protected override async Task OnInitializedAsync()
     {
@@ -148,8 +168,44 @@ else
             return;
         }
 
+        if (!IsAgentOrAdmin)
+        {
+            Nav.NavigateTo("/tickets", replace: true);
+            return;
+        }
+
+        await LoadAssignableAgentsAsync();
         await LoadSummaryAsync();
         await LoadListAsync();
+    }
+
+    private async Task LoadAssignableAgentsAsync()
+    {
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.GetAsync("api/users/agents");
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return;
+            }
+
+            var body = await response.Content.ReadFromJsonAsync<List<string>>();
+            _assignableAgents = (body ?? new List<string>())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch
+        {
+            // Optional UX improvement: if it fails the page still works.
+        }
     }
 
     private async Task LoadSummaryAsync()
@@ -254,6 +310,18 @@ else
             queryParts.Add($"AssignedTo={Uri.EscapeDataString(_assignedTo)}");
         }
 
+        var createdFrom = BuildCreatedFromParameter(_createdFrom);
+        if (!string.IsNullOrWhiteSpace(createdFrom))
+        {
+            queryParts.Add($"CreatedFrom={Uri.EscapeDataString(createdFrom)}");
+        }
+
+        var createdTo = BuildCreatedToParameter(_createdTo);
+        if (!string.IsNullOrWhiteSpace(createdTo))
+        {
+            queryParts.Add($"CreatedTo={Uri.EscapeDataString(createdTo)}");
+        }
+
         if (_unassignedOnly)
         {
             queryParts.Add("UnassignedOnly=true");
@@ -268,12 +336,24 @@ else
         await LoadListAsync();
     }
 
+    private void OnCreatedFromChanged(ChangeEventArgs e)
+    {
+        _createdFrom = e?.Value?.ToString() ?? string.Empty;
+    }
+
+    private void OnCreatedToChanged(ChangeEventArgs e)
+    {
+        _createdTo = e?.Value?.ToString() ?? string.Empty;
+    }
+
     private async Task ResetFiltersAsync()
     {
         _search = string.Empty;
         _status = string.Empty;
         _priority = string.Empty;
         _assignedTo = string.Empty;
+        _createdFrom = string.Empty;
+        _createdTo = string.Empty;
         _unassignedOnly = false;
         _sort = "created_desc";
         _page = 1;
@@ -309,14 +389,20 @@ else
 
     private bool HandleUnauthorized(HttpResponseMessage response)
     {
-        if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized)
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
-            return false;
+            Auth.Clear();
+            Nav.NavigateTo("/login", replace: true);
+            return true;
         }
 
-        Auth.Clear();
-        Nav.NavigateTo("/login", replace: true);
-        return true;
+        if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            Nav.NavigateTo("/tickets", replace: true);
+            return true;
+        }
+
+        return false;
     }
 
     private HttpClient CreateAuthorizedClient()
@@ -344,6 +430,26 @@ else
         3 => "Critical",
         _ => "?"
     };
+
+    private static string? BuildCreatedFromParameter(string value)
+    {
+        if (!DateOnly.TryParse(value, out var date))
+        {
+            return null;
+        }
+
+        return date.ToDateTime(TimeOnly.MinValue).ToString("O");
+    }
+
+    private static string? BuildCreatedToParameter(string value)
+    {
+        if (!DateOnly.TryParse(value, out var date))
+        {
+            return null;
+        }
+
+        return date.ToDateTime(new TimeOnly(23, 59, 59)).ToString("O");
+    }
 
     private sealed class SummaryDto
     {

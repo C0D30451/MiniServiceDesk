@@ -19,6 +19,12 @@ public class AppDbContext : IdentityDbContext
         modelBuilder.Entity<Ticket>()
             .HasIndex(t => t.CreatedAt);
 
+        modelBuilder.Entity<Ticket>()
+            .HasIndex(t => t.CreatedByUserId);
+
+        modelBuilder.Entity<Ticket>()
+            .HasIndex(t => t.AssignedToUserId);
+
         modelBuilder.Entity<TicketComment>()
             .HasOne(c => c.Ticket)
             .WithMany(t => t.Comments)

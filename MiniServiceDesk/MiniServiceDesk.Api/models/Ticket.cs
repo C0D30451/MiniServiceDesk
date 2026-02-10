@@ -48,6 +48,11 @@ public class Ticket
 
     public DateTime? AssignedAt { get; set; }
 
+    public string? CreatedByUserId { get; set; }
+
+    [MaxLength(80)]
+    public string? CreatedByUserName { get; set; }
+
     public int? TicketColumnId { get; set; }
 
     [JsonIgnore]
