@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MiniServiceDesk.Api.Data;
+using MiniServiceDesk.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,6 +50,8 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
+builder.Services.Configure<EmailNotificationOptions>(builder.Configuration.GetSection("EmailNotifications"));
+builder.Services.AddScoped<IEmailNotificationService, EmailNotificationService>();
 
 builder.Services.AddCors(options =>
 {

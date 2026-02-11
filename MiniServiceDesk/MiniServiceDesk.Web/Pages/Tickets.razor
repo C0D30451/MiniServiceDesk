@@ -168,6 +168,10 @@ else
 
                     <div class="ticket-meta">
                         <span class="priority-pill @PriorityCss(t.Priority)">@PriorityLabel(t.Priority)</span>
+                        @if (t.DueAt is not null)
+                        {
+                            <span class="sla-pill @SlaCss(t.DueAt.Value)">@SlaLabel(t.DueAt.Value)</span>
+                        }
                         <span class="meta-dot">•</span>
                         <span>@t.Category</span>
                         <span class="meta-dot">•</span>
@@ -547,6 +551,38 @@ else
         _ => "prio-unknown"
     };
 
+    private static string SlaLabel(DateTime dueAtUtc)
+    {
+        var delta = dueAtUtc - DateTime.UtcNow;
+        if (delta.TotalSeconds < 0)
+        {
+            return "Overdue";
+        }
+
+        if (delta.TotalHours <= 24)
+        {
+            return "Due soon";
+        }
+
+        return "On track";
+    }
+
+    private static string SlaCss(DateTime dueAtUtc)
+    {
+        var delta = dueAtUtc - DateTime.UtcNow;
+        if (delta.TotalSeconds < 0)
+        {
+            return "sla-overdue";
+        }
+
+        if (delta.TotalHours <= 24)
+        {
+            return "sla-soon";
+        }
+
+        return "sla-ok";
+    }
+
     private sealed class ColumnDto
     {
         public int Id { get; set; }
@@ -580,6 +616,7 @@ else
         public int Status { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+        public DateTime? DueAt { get; set; }
         public int? TicketColumnId { get; set; }
         public int SortOrderInColumn { get; set; }
     }

@@ -1,6 +1,8 @@
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Routing
 @inject MiniServiceDesk.Web.Services.AuthState Auth
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager NavigationManager
 @implements IDisposable
 
 @{
@@ -57,6 +59,20 @@
                 </li>
             }
 
+            @if (Auth.IsAuthenticated)
+            {
+                <li class="nav-item">
+                    <NavLink class="nav-link link-light" href="notifications">
+                        <i class="bi-bell"></i>
+                        <span class="ms-1">Notifications</span>
+                        @if (_unreadCount > 0)
+                        {
+                            <span class="notification-badge">@_unreadCount</span>
+                        }
+                    </NavLink>
+                </li>
+            }
+
             <li class="nav-item">
                 <NavLink class="nav-link link-light" href="login">
                     <i class="bi-person-circle"></i>
@@ -74,18 +90,68 @@
 </nav>
 
 @code {
+    private int _unreadCount;
+
     protected override void OnInitialized()
     {
         Auth.OnChange += HandleAuthChanged;
+        NavigationManager.LocationChanged += HandleLocationChanged;
+        _ = LoadUnreadCountAsync();
     }
 
     private void HandleAuthChanged()
     {
+        _ = LoadUnreadCountAsync();
         _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _ = LoadUnreadCountAsync();
+    }
+
+    private async Task LoadUnreadCountAsync()
+    {
+        if (!Auth.IsAuthenticated || string.IsNullOrWhiteSpace(Auth.Token))
+        {
+            _unreadCount = 0;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("Api");
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", Auth.Token);
+
+            var response = await client.GetAsync("api/notifications/unread-count");
+            if (!response.IsSuccessStatusCode)
+            {
+                _unreadCount = 0;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            var body = await response.Content.ReadFromJsonAsync<UnreadCountDto>();
+            _unreadCount = body?.Count ?? 0;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            _unreadCount = 0;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     public void Dispose()
     {
         Auth.OnChange -= HandleAuthChanged;
+        NavigationManager.LocationChanged -= HandleLocationChanged;
+    }
+
+    private sealed class UnreadCountDto
+    {
+        public int Count { get; set; }
     }
 }

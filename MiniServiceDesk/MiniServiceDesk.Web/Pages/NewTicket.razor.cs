@@ -10,6 +10,7 @@ public partial class NewTicket
     private const int DescriptionMaxLength = 4000;
 
     private string? _error;
+    private DateTime? _dueAtLocal;
 
     private CreateTicketRequest _model = new()
     {
@@ -61,6 +62,8 @@ public partial class NewTicket
 
         try
         {
+            _model.DueAt = _dueAtLocal?.ToUniversalTime();
+
             var client = HttpClientFactory.CreateClient("Api");
             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", Auth.Token);
 
@@ -103,5 +106,6 @@ public partial class NewTicket
         public string Description { get; set; } = "";
         public string Category { get; set; } = "";
         public int Priority { get; set; }
+        public DateTime? DueAt { get; set; }
     }
 }

@@ -32,6 +32,11 @@
     <input type="number" @bind="_model.Priority" />
 </div>
 
+<div style="margin-top:8px">
+    <label style="color:#f4f8ff">Due date (optional)</label><br />
+    <input type="datetime-local" @bind="_dueAtLocal" />
+</div>
+
 <div style="margin-top:12px">
     <button type="button" @onclick="HandleSaveClick">Save</button>
     <a href="/tickets" style="margin-left:8px">Cancel</a>

@@ -16,6 +16,7 @@ namespace MiniServiceDesk.Api.Dtos
         [RegularExpression(@".*\S.*")]
         public string Description { get; set; } = string.Empty;
         public string Category { get; set; } = "IT";
-        public int Priority { get; set; } = 1; 
+        public int Priority { get; set; } = 1;
+        public DateTime? DueAt { get; set; }
     }
 }

@@ -11,6 +11,9 @@ public class AppDbContext : IdentityDbContext
     public DbSet<Ticket> Tickets => Set<Ticket>();
     public DbSet<TicketComment> TicketComments => Set<TicketComment>();
     public DbSet<TicketColumn> TicketColumns => Set<TicketColumn>();
+    public DbSet<TicketEvent> TicketEvents => Set<TicketEvent>();
+    public DbSet<TicketAttachment> TicketAttachments => Set<TicketAttachment>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -25,11 +28,35 @@ public class AppDbContext : IdentityDbContext
         modelBuilder.Entity<Ticket>()
             .HasIndex(t => t.AssignedToUserId);
 
+        modelBuilder.Entity<Ticket>()
+            .HasIndex(t => t.DueAt);
+
         modelBuilder.Entity<TicketComment>()
             .HasOne(c => c.Ticket)
             .WithMany(t => t.Comments)
             .HasForeignKey(c => c.TicketId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<TicketEvent>()
+            .HasOne(e => e.Ticket)
+            .WithMany(t => t.Events)
+            .HasForeignKey(e => e.TicketId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<TicketEvent>()
+            .HasIndex(e => new { e.TicketId, e.CreatedAt });
+
+        modelBuilder.Entity<TicketAttachment>()
+            .HasOne(a => a.Ticket)
+            .WithMany(t => t.Attachments)
+            .HasForeignKey(a => a.TicketId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<TicketAttachment>()
+            .HasIndex(a => new { a.TicketId, a.CreatedAt });
+
+        modelBuilder.Entity<UserNotification>()
+            .HasIndex(n => new { n.UserId, n.IsRead, n.CreatedAt });
 
         modelBuilder.Entity<TicketColumn>()
             .HasIndex(c => new { c.OwnerUserId, c.Name })

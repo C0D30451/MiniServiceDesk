@@ -26,5 +26,10 @@ public sealed class AuthState
         OnChange?.Invoke();
     }
 
+    public void NotifyChanged()
+    {
+        OnChange?.Invoke();
+    }
+
     public bool IsInRole(string role) => Roles.Contains(role);
 }

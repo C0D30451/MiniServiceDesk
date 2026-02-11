@@ -1,0 +1,201 @@
+@page "/notifications"
+@inject IHttpClientFactory HttpClientFactory
+@inject MiniServiceDesk.Web.Services.AuthState Auth
+@inject NavigationManager Nav
+
+<section class="page-shell">
+    <h3 class="page-title">Notifications</h3>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <p class="panel" style="color:#ff9b9b">@_error</p>
+    }
+
+    @if (!Auth.IsAuthenticated)
+    {
+        <p class="panel">You must login first.</p>
+    }
+    else if (_loading)
+    {
+        <p class="panel">Loading...</p>
+    }
+    else
+    {
+        <section class="panel">
+            <button type="button" @onclick="MarkAllAsReadAsync">Mark all as read</button>
+        </section>
+
+        <section class="panel" style="margin-top:12px;">
+            @if (_rows.Count == 0)
+            {
+                <p>No notifications.</p>
+            }
+            else
+            {
+                @foreach (var row in _rows)
+                {
+                    <article style="border-top:1px solid rgba(255,255,255,.12); padding:10px 0;">
+                        <div style="display:flex; justify-content:space-between; gap:10px;">
+                            <strong style="opacity:@(row.IsRead ? "0.75" : "1")">@row.Message</strong>
+                            <span style="opacity:.8">@FormatDate(row.CreatedAt)</span>
+                        </div>
+                        <div style="margin-top:6px; display:flex; gap:8px;">
+                            @if (row.TicketId is not null)
+                            {
+                                <button type="button" @onclick="() => OpenTicket(row.TicketId.Value)">Open ticket</button>
+                            }
+                            @if (!row.IsRead)
+                            {
+                                <button type="button" @onclick="() => MarkAsReadAsync(row.Id)">Mark as read</button>
+                            }
+                        </div>
+                    </article>
+                }
+            }
+        </section>
+    }
+</section>
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<NotificationDto> _rows = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Auth.IsAuthenticated)
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.GetAsync("api/notifications");
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Notifications load failed ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            _rows = await response.Content.ReadFromJsonAsync<List<NotificationDto>>() ?? new();
+            Auth.NotifyChanged();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task MarkAsReadAsync(int id)
+    {
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.PostAsync($"api/notifications/{id}/read", null);
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Mark-as-read failed ({(int)response.StatusCode}).";
+                return;
+            }
+
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private async Task MarkAllAsReadAsync()
+    {
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.PostAsync("api/notifications/read-all", null);
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Mark-all-read failed ({(int)response.StatusCode}).";
+                return;
+            }
+
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private void OpenTicket(int ticketId)
+    {
+        Nav.NavigateTo($"/tickets/{ticketId}");
+    }
+
+    private bool HandleUnauthorized(HttpResponseMessage response)
+    {
+        if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized)
+        {
+            return false;
+        }
+
+        Auth.Clear();
+        Nav.NavigateTo("/login", replace: true);
+        return true;
+    }
+
+    private HttpClient CreateAuthorizedClient()
+    {
+        var client = HttpClientFactory.CreateClient("Api");
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", Auth.Token);
+        return client;
+    }
+
+    private static string FormatDate(DateTime value)
+    {
+        if (value == default)
+        {
+            return "-";
+        }
+
+        return value.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+    }
+
+    private sealed class NotificationDto
+    {
+        public int Id { get; set; }
+        public int? TicketId { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public string NotificationType { get; set; } = "general";
+        public bool IsRead { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+}

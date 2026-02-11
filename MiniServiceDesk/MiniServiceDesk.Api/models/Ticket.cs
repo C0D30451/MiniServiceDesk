@@ -53,6 +53,8 @@ public class Ticket
     [MaxLength(80)]
     public string? CreatedByUserName { get; set; }
 
+    public DateTime? DueAt { get; set; }
+
     public int? TicketColumnId { get; set; }
 
     [JsonIgnore]
@@ -66,4 +68,10 @@ public class Ticket
 
     [JsonIgnore]
     public List<TicketComment> Comments { get; set; } = new();
+
+    [JsonIgnore]
+    public List<TicketEvent> Events { get; set; } = new();
+
+    [JsonIgnore]
+    public List<TicketAttachment> Attachments { get; set; } = new();
 }

@@ -94,6 +94,7 @@ else
                 <option value="created_desc">Created desc</option>
                 <option value="updated_desc">Updated desc</option>
                 <option value="priority_desc">Priority desc</option>
+                <option value="urgency_desc">Urgency (due first)</option>
             </select>
         </div>
 
@@ -116,6 +117,7 @@ else
                     <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Status</th>
                     <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Priority</th>
                     <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Assigned</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Due</th>
                     <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Updated</th>
                 </tr>
             </thead>
@@ -128,6 +130,7 @@ else
                         <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@StatusLabel(t.Status)</td>
                         <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@PriorityLabel(t.Priority)</td>
                         <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@((t.AssignedToUserName ?? "(unassigned)"))</td>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@FormatDue(t.DueAt)</td>
                         <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@t.UpdatedAt.ToString("yyyy-MM-dd HH:mm")</td>
                     </tr>
                 }
@@ -387,6 +390,24 @@ else
         Nav.NavigateTo($"/tickets/{id}");
     }
 
+    private static string FormatDue(DateTime? dueAt)
+    {
+        if (dueAt is null)
+        {
+            return "-";
+        }
+
+        var local = dueAt.Value.ToLocalTime();
+        var now = DateTime.Now;
+        var label = local < now
+            ? "OVERDUE"
+            : (local - now).TotalHours <= 24
+                ? "DUE SOON"
+                : "ON TRACK";
+
+        return $"{local:yyyy-MM-dd HH:mm} ({label})";
+    }
+
     private bool HandleUnauthorized(HttpResponseMessage response)
     {
         if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
@@ -472,6 +493,7 @@ else
         public int Status { get; set; }
         public int Priority { get; set; }
         public string? AssignedToUserName { get; set; }
+        public DateTime? DueAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }
 }

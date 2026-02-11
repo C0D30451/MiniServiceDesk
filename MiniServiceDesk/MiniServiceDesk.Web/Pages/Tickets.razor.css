@@ -111,6 +111,30 @@
     color: #89a0bf;
 }
 
+.sla-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.16rem 0.58rem;
+}
+
+.sla-ok {
+    color: #8de6b1;
+    background: rgba(36, 120, 78, 0.28);
+}
+
+.sla-soon {
+    color: #ffd18a;
+    background: rgba(140, 96, 18, 0.30);
+}
+
+.sla-overdue {
+    color: #ff9c9c;
+    background: rgba(138, 34, 34, 0.34);
+}
+
 .empty-column {
     opacity: 0.7;
     font-size: 12px;

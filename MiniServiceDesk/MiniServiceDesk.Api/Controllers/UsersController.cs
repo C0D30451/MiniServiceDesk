@@ -34,9 +34,11 @@ public class UsersController : ControllerBase
     {
         var agents = await _userManager.GetUsersInRoleAsync("Agent");
         var admins = await _userManager.GetUsersInRoleAsync("Admin");
+        var users = await _userManager.GetUsersInRoleAsync("User");
 
         var userNames = agents
             .Concat(admins)
+            .Concat(users)
             .Select(u => u.UserName ?? string.Empty)
             .Where(u => !string.IsNullOrWhiteSpace(u))
             .Distinct(StringComparer.OrdinalIgnoreCase)
