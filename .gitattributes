@@ -1,0 +1,16 @@
+* text=auto eol=crlf
+
+# Keep shell scripts and CI config LF-safe where needed
+*.sh text eol=lf
+
+# Keep binaries untouched
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.db binary
+*.dll binary
+*.exe binary
