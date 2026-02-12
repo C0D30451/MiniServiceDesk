@@ -3,6 +3,7 @@
 @rendermode InteractiveServer
 @inject IHttpClientFactory HttpClientFactory
 @inject NavigationManager Nav
+@inject MiniServiceDesk.Web.Services.AuthState Auth
 
 <h3 class="page-title">New ticket</h3>
 
@@ -29,6 +30,11 @@
 <div style="margin-top:8px">
     <label style="color:#f4f8ff">Priority (0 Low, 1 Medium, 2 High, 3 Critical)</label><br />
     <input type="number" @bind="_model.Priority" />
+</div>
+
+<div style="margin-top:8px">
+    <label style="color:#f4f8ff">Due date (optional)</label><br />
+    <input type="datetime-local" @bind="_dueAtLocal" />
 </div>
 
 <div style="margin-top:12px">

@@ -1,32 +1,177 @@
 @page "/tickets"
+@rendermode InteractiveServer
 @inject IHttpClientFactory HttpClientFactory
+@inject MiniServiceDesk.Web.Services.AuthState Auth
+@inject NavigationManager Nav
 
-<section class="page-shell">
-    <div class="page-head">
-        <h3 class="page-title">Tickets</h3>
-        <a class="btn btn-primary page-cta" href="/tickets/new">+ New ticket</a>
+<div class="toolbar">
+    <div class="toolbar-title">Tickets board</div>
+
+    <div>
+        <button class="btn-mini" @onclick="OpenAddColumn">+ Colonna</button>
+        <a class="btn-mini" href="/tickets/new" style="text-decoration:none; margin-left:8px;">+ Ticket</a>
     </div>
+</div>
 
-    @if (_tickets is null)
+@if (!Auth.IsAuthenticated)
+{
+    <p class="panel">Devi fare login.</p>
+}
+else if (_loading)
+{
+    <p class="panel">Caricamento...</p>
+}
+else if (_error is not null)
+{
+    <p class="panel" style="color:#ff9b9b">@_error</p>
+}
+else
+{
+    <div class="board">
+        @ColumnBlock("Inbox", null, GetColumnTickets(null))
+
+        @foreach (var col in _columns)
+        {
+            @ColumnBlock(col.Name, col.Id, GetColumnTickets(col.Id))
+        }
+    </div>
+}
+
+@if (_showAddColumn)
+{
+    <section class="panel new-column-panel" style="margin-top:12px;">
+        <div class="new-column-title">Nuova colonna</div>
+        <input @bind="_newColumnName" placeholder="Nome colonna" />
+        <button class="btn-mini new-column-btn" style="margin-left:8px;" @onclick="CreateColumnAsync">Crea</button>
+        <button class="btn-mini new-column-btn" style="margin-left:8px;" @onclick="CloseAddColumn">Annulla</button>
+
+        @if (!string.IsNullOrWhiteSpace(_addColumnError))
+        {
+            <div class="new-column-error">@_addColumnError</div>
+        }
+    </section>
+}
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+
+    private List<ColumnDto> _columns = new();
+    private List<TicketDto> _tickets = new();
+
+    private int? _dragTicketId;
+    private int? _dragSourceColumnId;
+    private int? _dragOverColumnId;
+    private int? _dragOverTicketId;
+
+    private bool _showAddColumn;
+    private string _newColumnName = string.Empty;
+    private string? _addColumnError;
+
+    protected override async Task OnInitializedAsync()
     {
-        <p class="panel">Loading...</p>
+        if (!Auth.IsAuthenticated)
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        await ReloadAllAsync();
     }
-    else if (_tickets.Count == 0)
+
+    private async Task ReloadAllAsync()
     {
-        <p class="panel">No tickets yet.</p>
-    }
-    else
-    {
-        <div class="ticket-grid">
-            @foreach (var t in _tickets.OrderBy(t => t.Id))
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            var client = CreateAuthorizedClient();
+
+            var colsResponse = await client.GetAsync("api/columns");
+            if (HandleUnauthorized(colsResponse))
             {
-                <article class="ticket-card">
+                return;
+            }
+
+            if (!colsResponse.IsSuccessStatusCode)
+            {
+                _error = $"Errore caricamento colonne ({(int)colsResponse.StatusCode}): {await colsResponse.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            _columns = await colsResponse.Content.ReadFromJsonAsync<List<ColumnDto>>() ?? new List<ColumnDto>();
+            _columns = _columns.OrderBy(c => c.SortOrder).ThenBy(c => c.Id).ToList();
+
+            var ticketsResponse = await client.GetAsync("api/tickets");
+            if (HandleUnauthorized(ticketsResponse))
+            {
+                return;
+            }
+
+            if (!ticketsResponse.IsSuccessStatusCode)
+            {
+                _error = $"Errore caricamento ticket ({(int)ticketsResponse.StatusCode}): {await ticketsResponse.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            _tickets = await ticketsResponse.Content.ReadFromJsonAsync<List<TicketDto>>() ?? new List<TicketDto>();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private List<TicketDto> GetColumnTickets(int? columnId)
+    {
+        return _tickets
+            .Where(t => t.TicketColumnId == columnId)
+            .OrderBy(t => t.SortOrderInColumn)
+            .ThenBy(t => t.Id)
+            .ToList();
+    }
+
+    private RenderFragment ColumnBlock(string title, int? columnId, List<TicketDto> items) => @<div class="column @(IsColumnDropTarget(columnId) ? "drag-over-column" : string.Empty)">
+        <div class="column-header">
+            <div class="column-title">@title (@items.Count)</div>
+
+            @if (columnId is not null)
+            {
+                <button class="btn-mini" title="Elimina colonna" @onclick="() => DeleteColumnAsync(columnId.Value)">X</button>
+            }
+        </div>
+
+        <div class="column-dropzone"
+             @ondragover="OnDragOver"
+             @ondragover:preventDefault="true"
+             @ondragenter="() => OnDragEnterColumn(columnId)"
+             @ondragleave="() => OnDragLeaveColumn(columnId)"
+             @ondrop:preventDefault="true"
+             @ondrop="(e) => OnDropAsync(e, columnId)">
+
+            @foreach (var t in items)
+            {
+                <article class="ticket-card @(IsRowDropTarget(t.Id, columnId) ? "drag-target" : string.Empty)"
+                         draggable="true"
+                         @ondragstart="(e) => OnDragStart(e, t.Id)"
+                         @ondragend="OnDragEnd"
+                         @ondragenter="() => OnDragEnterTicket(t.Id, columnId)">
                     <div class="ticket-card-head">
                         <a class="ticket-title-link" href="/tickets/@t.Id">@t.Title</a>
                         <span class="status-pill @StatusCss(t.Status)">@StatusLabel(t.Status)</span>
                     </div>
+
                     <div class="ticket-meta">
                         <span class="priority-pill @PriorityCss(t.Priority)">@PriorityLabel(t.Priority)</span>
+                        @if (t.DueAt is not null)
+                        {
+                            <span class="sla-pill @SlaCss(t.DueAt.Value)">@SlaLabel(t.DueAt.Value)</span>
+                        }
                         <span class="meta-dot">•</span>
                         <span>@t.Category</span>
                         <span class="meta-dot">•</span>
@@ -34,17 +179,338 @@
                     </div>
                 </article>
             }
+
+            @if (items.Count == 0)
+            {
+                <div class="empty-column">Trascina qui un ticket...</div>
+            }
         </div>
+    </div>;
+
+    private void OnDragOver(DragEventArgs _)
+    {
+        // Required with preventDefault to ensure drop fires reliably across browsers.
     }
-</section>
 
-@code {
-    private List<TicketDto>? _tickets;
+    private void OnDragStart(DragEventArgs _, int ticketId)
+    {
+        _dragTicketId = ticketId;
+        _dragSourceColumnId = _tickets.FirstOrDefault(t => t.Id == ticketId)?.TicketColumnId;
+        _dragOverColumnId = _dragSourceColumnId;
+        _dragOverTicketId = null;
+    }
 
-    protected override async Task OnInitializedAsync()
+    private void OnDragEnd(DragEventArgs _)
+    {
+        _dragTicketId = null;
+        _dragSourceColumnId = null;
+        _dragOverColumnId = null;
+        _dragOverTicketId = null;
+    }
+
+    private void OnDragEnterColumn(int? columnId)
+    {
+        _dragOverColumnId = columnId;
+        if (_dragSourceColumnId != columnId)
+        {
+            _dragOverTicketId = null;
+        }
+    }
+
+    private void OnDragLeaveColumn(int? columnId)
+    {
+        if (_dragOverColumnId == columnId)
+        {
+            _dragOverColumnId = null;
+        }
+    }
+
+    private void OnDragEnterTicket(int ticketId, int? columnId)
+    {
+        _dragOverColumnId = columnId;
+        if (_dragSourceColumnId == columnId && _dragTicketId != ticketId)
+        {
+            _dragOverTicketId = ticketId;
+        }
+        else
+        {
+            _dragOverTicketId = null;
+        }
+    }
+
+    private bool IsColumnDropTarget(int? columnId) =>
+        _dragTicketId is not null &&
+        _dragOverColumnId == columnId &&
+        _dragSourceColumnId != columnId;
+
+    private bool IsRowDropTarget(int ticketId, int? columnId) =>
+        _dragTicketId is not null &&
+        _dragTicketId != ticketId &&
+        _dragOverTicketId == ticketId &&
+        _dragSourceColumnId == columnId &&
+        _dragOverColumnId == columnId;
+
+    private async Task OnDropAsync(DragEventArgs _, int? columnId)
+    {
+        if (_dragTicketId is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var dragged = _tickets.FirstOrDefault(x => x.Id == _dragTicketId.Value);
+            if (dragged is null)
+            {
+                return;
+            }
+
+            var sourceColumnId = dragged.TicketColumnId;
+
+            if (sourceColumnId == columnId)
+            {
+                ReorderInMemory(columnId, dragged.Id, _dragOverTicketId);
+                await PersistReorderAsync(columnId);
+                _error = null;
+                return;
+            }
+
+            var client = CreateAuthorizedClient();
+
+            var move = new HttpRequestMessage(new HttpMethod("PATCH"), $"api/tickets/{dragged.Id}/move")
+            {
+                Content = JsonContent.Create(new MoveTicketDto { TicketColumnId = columnId })
+            };
+
+            var moveResponse = await client.SendAsync(move);
+            if (HandleUnauthorized(moveResponse))
+            {
+                return;
+            }
+
+            if (!moveResponse.IsSuccessStatusCode)
+            {
+                _error = $"Spostamento fallito ({(int)moveResponse.StatusCode}): {await moveResponse.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            dragged.TicketColumnId = columnId;
+            MoveToColumnEndInMemory(dragged, sourceColumnId, columnId);
+
+            await PersistReorderAsync(columnId);
+            await PersistReorderAsync(sourceColumnId);
+
+            _error = null;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _dragTicketId = null;
+            _dragSourceColumnId = null;
+            _dragOverColumnId = null;
+            _dragOverTicketId = null;
+        }
+    }
+
+    private void ReorderInMemory(int? columnId, int draggedId, int? overTicketId)
+    {
+        if (overTicketId == draggedId)
+        {
+            return;
+        }
+
+        var list = GetColumnTickets(columnId);
+        var dragged = list.FirstOrDefault(x => x.Id == draggedId);
+        if (dragged is null)
+        {
+            return;
+        }
+
+        list.Remove(dragged);
+
+        if (overTicketId is null)
+        {
+            list.Add(dragged);
+        }
+        else
+        {
+            var idx = list.FindIndex(x => x.Id == overTicketId.Value);
+            if (idx < 0)
+            {
+                list.Add(dragged);
+            }
+            else
+            {
+                list.Insert(idx, dragged);
+            }
+        }
+
+        for (var i = 0; i < list.Count; i++)
+        {
+            list[i].SortOrderInColumn = (i + 1) * 10;
+        }
+    }
+
+    private void MoveToColumnEndInMemory(TicketDto dragged, int? sourceColumnId, int? targetColumnId)
+    {
+        var targetMax = _tickets
+            .Where(t => t.TicketColumnId == targetColumnId && t.Id != dragged.Id)
+            .Select(t => t.SortOrderInColumn)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        dragged.TicketColumnId = targetColumnId;
+        dragged.SortOrderInColumn = targetMax + 10;
+
+        var sourceList = GetColumnTickets(sourceColumnId);
+        for (var i = 0; i < sourceList.Count; i++)
+        {
+            sourceList[i].SortOrderInColumn = (i + 1) * 10;
+        }
+
+        var targetList = GetColumnTickets(targetColumnId);
+        for (var i = 0; i < targetList.Count; i++)
+        {
+            targetList[i].SortOrderInColumn = (i + 1) * 10;
+        }
+    }
+
+    private async Task PersistReorderAsync(int? columnId)
+    {
+        var orderedIds = GetColumnTickets(columnId)
+            .Select(t => t.Id)
+            .ToList();
+
+        if (orderedIds.Count == 0)
+        {
+            return;
+        }
+
+        var client = CreateAuthorizedClient();
+        var response = await client.PostAsJsonAsync("api/tickets/reorder", new ReorderColumnDto
+        {
+            TicketColumnId = columnId,
+            OrderedTicketIds = orderedIds
+        });
+
+        if (HandleUnauthorized(response))
+        {
+            return;
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _error = $"Reorder fallito ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+        }
+    }
+
+    private void OpenAddColumn()
+    {
+        _showAddColumn = true;
+        _newColumnName = string.Empty;
+        _addColumnError = null;
+    }
+
+    private void CloseAddColumn()
+    {
+        _showAddColumn = false;
+        _addColumnError = null;
+    }
+
+    private async Task CreateColumnAsync()
+    {
+        _addColumnError = null;
+        var name = (_newColumnName ?? string.Empty).Trim();
+
+        if (name.Length < 1)
+        {
+            _addColumnError = "Inserisci un nome.";
+            return;
+        }
+
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.PostAsJsonAsync("api/columns", new CreateColumnDto { Name = name });
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _addColumnError = $"Errore ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            var created = await response.Content.ReadFromJsonAsync<ColumnDto>();
+            if (created is not null)
+            {
+                _columns.Add(created);
+                _columns = _columns.OrderBy(c => c.SortOrder).ThenBy(c => c.Id).ToList();
+            }
+
+            _showAddColumn = false;
+            _newColumnName = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            _addColumnError = ex.Message;
+        }
+    }
+
+    private async Task DeleteColumnAsync(int id)
+    {
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.DeleteAsync($"api/columns/{id}");
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Delete fallita ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            _columns.RemoveAll(c => c.Id == id);
+            foreach (var t in _tickets.Where(t => t.TicketColumnId == id))
+            {
+                t.TicketColumnId = null;
+            }
+
+            await PersistReorderAsync(null);
+            _error = null;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private bool HandleUnauthorized(HttpResponseMessage response)
+    {
+        if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized)
+        {
+            return false;
+        }
+
+        Auth.Clear();
+        Nav.NavigateTo("/login", replace: true);
+        return true;
+    }
+
+    private HttpClient CreateAuthorizedClient()
     {
         var client = HttpClientFactory.CreateClient("Api");
-        _tickets = await client.GetFromJsonAsync<List<TicketDto>>("api/tickets");
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", Auth.Token);
+        return client;
     }
 
     private static string StatusLabel(int status) => status switch
@@ -85,15 +551,73 @@
         _ => "prio-unknown"
     };
 
-    private class TicketDto
+    private static string SlaLabel(DateTime dueAtUtc)
+    {
+        var delta = dueAtUtc - DateTime.UtcNow;
+        if (delta.TotalSeconds < 0)
+        {
+            return "Overdue";
+        }
+
+        if (delta.TotalHours <= 24)
+        {
+            return "Due soon";
+        }
+
+        return "On track";
+    }
+
+    private static string SlaCss(DateTime dueAtUtc)
+    {
+        var delta = dueAtUtc - DateTime.UtcNow;
+        if (delta.TotalSeconds < 0)
+        {
+            return "sla-overdue";
+        }
+
+        if (delta.TotalHours <= 24)
+        {
+            return "sla-soon";
+        }
+
+        return "sla-ok";
+    }
+
+    private sealed class ColumnDto
     {
         public int Id { get; set; }
-        public string Title { get; set; } = "";
-        public string Description { get; set; } = "";
-        public string Category { get; set; } = "";
+        public string Name { get; set; } = string.Empty;
+        public int SortOrder { get; set; }
+    }
+
+    private sealed class CreateColumnDto
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class MoveTicketDto
+    {
+        public int? TicketColumnId { get; set; }
+    }
+
+    private sealed class ReorderColumnDto
+    {
+        public int? TicketColumnId { get; set; }
+        public List<int> OrderedTicketIds { get; set; } = new();
+    }
+
+    private sealed class TicketDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
         public int Priority { get; set; }
         public int Status { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+        public DateTime? DueAt { get; set; }
+        public int? TicketColumnId { get; set; }
+        public int SortOrderInColumn { get; set; }
     }
 }

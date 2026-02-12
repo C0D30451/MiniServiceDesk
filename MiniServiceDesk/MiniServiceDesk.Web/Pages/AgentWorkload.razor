@@ -1,0 +1,157 @@
+@page "/dashboard/agents"
+@rendermode InteractiveServer
+
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager Nav
+@inject MiniServiceDesk.Web.Services.AuthState Auth
+
+<h3 style="padding:12px; color:#f4f8ff;">Agent Workload</h3>
+
+@if (!Auth.IsAuthenticated)
+{
+    <p style="padding:12px;">Devi fare login.</p>
+}
+else if (_loading)
+{
+    <p style="padding:12px;">Caricamento...</p>
+}
+else if (_error is not null)
+{
+    <p style="padding:12px; color:#ff9b9b;">@_error</p>
+}
+else
+{
+    <div style="padding:12px;">
+        <button style="padding:8px 12px; border-radius:10px;" @onclick="LoadAsync">Refresh</button>
+    </div>
+
+    <div style="padding:12px;">
+        <table style="width:100%; border-collapse:collapse; color:#f4f8ff;">
+            <thead>
+                <tr style="opacity:0.9; text-align:left;">
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Agent</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Total</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Open</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">In Progress</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Waiting</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Resolved</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Closed</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in _rows)
+                {
+                    <tr>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@row.AgentUserName</td>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);"><b>@row.TotalAssigned</b></td>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@StatusCount(row, 0)</td>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@StatusCount(row, 1)</td>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@StatusCount(row, 2)</td>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@StatusCount(row, 3)</td>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@StatusCount(row, 4)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<AgentWorkloadRow> _rows = new();
+
+    private bool IsAgentOrAdmin => Auth.IsInRole("Agent") || Auth.IsInRole("Admin");
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Auth.IsAuthenticated)
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        if (!IsAgentOrAdmin)
+        {
+            Nav.NavigateTo("/tickets", replace: true);
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.GetAsync("api/dashboard/agents");
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Errore: {(int)response.StatusCode} {response.ReasonPhrase}. {await response.Content.ReadAsStringAsync()}";
+                _rows = new List<AgentWorkloadRow>();
+                return;
+            }
+
+            _rows = await response.Content.ReadFromJsonAsync<List<AgentWorkloadRow>>() ?? new List<AgentWorkloadRow>();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private bool HandleUnauthorized(HttpResponseMessage response)
+    {
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            Auth.Clear();
+            Nav.NavigateTo("/login", replace: true);
+            return true;
+        }
+
+        if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            Nav.NavigateTo("/tickets", replace: true);
+            return true;
+        }
+
+        return false;
+    }
+
+    private HttpClient CreateAuthorizedClient()
+    {
+        var client = HttpClientFactory.CreateClient("Api");
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", Auth.Token);
+        return client;
+    }
+
+    private static int StatusCount(AgentWorkloadRow row, int status)
+    {
+        if (row.ByStatus is null || !row.ByStatus.TryGetValue(status, out var value))
+        {
+            return 0;
+        }
+
+        return value;
+    }
+
+    private sealed class AgentWorkloadRow
+    {
+        public string AgentUserName { get; set; } = string.Empty;
+        public int TotalAssigned { get; set; }
+        public Dictionary<int, int> ByStatus { get; set; } = new();
+    }
+}

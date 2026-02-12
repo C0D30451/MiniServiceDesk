@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MiniServiceDesk.Api.Data;
 
@@ -10,9 +11,11 @@ using MiniServiceDesk.Api.Data;
 namespace MiniServiceDesk.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260210130253_AddKanbanColumnsAndSortOrder")]
+    partial class AddKanbanColumnsAndSortOrder
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.23");
@@ -226,26 +229,15 @@ namespace MiniServiceDesk.Api.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Category")
-                        .IsRequired()
                         .HasMaxLength(60)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("CreatedByUserId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CreatedByUserName")
-                        .HasMaxLength(80)
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(4000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("DueAt")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Priority")
@@ -270,66 +262,11 @@ namespace MiniServiceDesk.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AssignedToUserId");
-
                     b.HasIndex("CreatedAt");
-
-                    b.HasIndex("CreatedByUserId");
-
-                    b.HasIndex("DueAt");
 
                     b.HasIndex("TicketColumnId");
 
                     b.ToTable("Tickets");
-                });
-
-            modelBuilder.Entity("MiniServiceDesk.Api.models.TicketAttachment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<long>("FileSizeBytes")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("OriginalFileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("StoredFileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("StoredRelativePath")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("TicketId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("UploadedByUserId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UploadedByUserName")
-                        .HasMaxLength(80)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TicketId", "CreatedAt");
-
-                    b.ToTable("TicketAttachments");
                 });
 
             modelBuilder.Entity("MiniServiceDesk.Api.models.TicketColumn", b =>
@@ -399,86 +336,6 @@ namespace MiniServiceDesk.Api.Migrations
                     b.ToTable("TicketComments");
                 });
 
-            modelBuilder.Entity("MiniServiceDesk.Api.models.TicketEvent", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("ActorUserId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ActorUserName")
-                        .HasMaxLength(80)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasMaxLength(600)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("TicketId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TicketId", "CreatedAt");
-
-                    b.ToTable("TicketEvents");
-                });
-
-            modelBuilder.Entity("MiniServiceDesk.Api.models.UserNotification", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsRead")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("NotificationType")
-                        .IsRequired()
-                        .HasMaxLength(60)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("ReadAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("TicketId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UserName")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId", "IsRead", "CreatedAt");
-
-                    b.ToTable("UserNotifications");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -540,17 +397,6 @@ namespace MiniServiceDesk.Api.Migrations
                     b.Navigation("TicketColumn");
                 });
 
-            modelBuilder.Entity("MiniServiceDesk.Api.models.TicketAttachment", b =>
-                {
-                    b.HasOne("MiniServiceDesk.Api.models.Ticket", "Ticket")
-                        .WithMany("Attachments")
-                        .HasForeignKey("TicketId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Ticket");
-                });
-
             modelBuilder.Entity("MiniServiceDesk.Api.models.TicketComment", b =>
                 {
                     b.HasOne("MiniServiceDesk.Api.models.Ticket", "Ticket")
@@ -562,24 +408,9 @@ namespace MiniServiceDesk.Api.Migrations
                     b.Navigation("Ticket");
                 });
 
-            modelBuilder.Entity("MiniServiceDesk.Api.models.TicketEvent", b =>
-                {
-                    b.HasOne("MiniServiceDesk.Api.models.Ticket", "Ticket")
-                        .WithMany("Events")
-                        .HasForeignKey("TicketId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Ticket");
-                });
-
             modelBuilder.Entity("MiniServiceDesk.Api.models.Ticket", b =>
                 {
-                    b.Navigation("Attachments");
-
                     b.Navigation("Comments");
-
-                    b.Navigation("Events");
                 });
 #pragma warning restore 612, 618
         }

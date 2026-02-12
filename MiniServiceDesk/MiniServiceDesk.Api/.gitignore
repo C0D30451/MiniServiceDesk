@@ -26,9 +26,7 @@
 *.db-wal
 *.sqlite
 *.sqlite3
-**/ticket-attachments/
 
 # OS files
 .DS_Store
 Thumbs.db
-

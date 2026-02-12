@@ -1,45 +1,77 @@
-using System.ComponentModel.DataAnnotations;   // ← aggiungi questa riga
-using System;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+
 namespace MiniServiceDesk.Api.models;
 
 public enum TicketPriority
 {
-    Low=0,
-    Medium=1,
-    High=2,
-    Critical=3
+    Low = 0,
+    Medium = 1,
+    High = 2,
+    Critical = 3
 }
 
 public enum TicketStatus
 {
-    Open=0,
-    InProgress=1,
-    Waiting=2,
-    Resolved=3,
-    Closed=4
+    Open = 0,
+    InProgress = 1,
+    Waiting = 2,
+    Resolved = 3,
+    Closed = 4
 }
-    public class Ticket
+
+public class Ticket
 {
-    public int Id{get;set;}
+    public int Id { get; set; }
 
     [Required]
     [MinLength(4)]
     [MaxLength(120)]
-    public string Title{get;set;}=String.Empty;
+    public string Title { get; set; } = string.Empty;
 
     [Required]
     [MinLength(10)]
     [MaxLength(4000)]
-    public string Description{get;set;}=String.Empty;
+    public string Description { get; set; } = string.Empty;
 
     [MaxLength(60)]
-    public string Category {get;set;}="IT";
+    public string Category { get; set; } = "IT";
 
-    public TicketPriority Priority{get;set;}=TicketPriority.Medium;
+    public TicketPriority Priority { get; set; } = TicketPriority.Medium;
 
-    public TicketStatus Status{get;set;}=TicketStatus.Open;
+    public TicketStatus Status { get; set; } = TicketStatus.Open;
 
-    public DateTime CreatedAt{get;set;}=DateTime.UtcNow;
+    public string? AssignedToUserId { get; set; }
 
-    public DateTime UpdatedAt{get;set;}=DateTime.UtcNow;
+    [MaxLength(80)]
+    public string? AssignedToUserName { get; set; }
+
+    public DateTime? AssignedAt { get; set; }
+
+    public string? CreatedByUserId { get; set; }
+
+    [MaxLength(80)]
+    public string? CreatedByUserName { get; set; }
+
+    public DateTime? DueAt { get; set; }
+
+    public int? TicketColumnId { get; set; }
+
+    [JsonIgnore]
+    public TicketColumn? TicketColumn { get; set; }
+
+    public int SortOrderInColumn { get; set; } = 0;
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [JsonIgnore]
+    public List<TicketComment> Comments { get; set; } = new();
+
+    [JsonIgnore]
+    public List<TicketEvent> Events { get; set; } = new();
+
+    [JsonIgnore]
+    public List<TicketAttachment> Attachments { get; set; } = new();
 }

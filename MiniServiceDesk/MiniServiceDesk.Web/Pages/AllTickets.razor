@@ -1,0 +1,499 @@
+@page "/tickets/all"
+@rendermode InteractiveServer
+
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager Nav
+@inject MiniServiceDesk.Web.Services.AuthState Auth
+
+<h3 style="padding:12px; color:#f4f8ff;">All Tickets (Global)</h3>
+
+@if (!Auth.IsAuthenticated)
+{
+    <p style="padding:12px;">Devi fare login.</p>
+}
+else if (_loading)
+{
+    <p style="padding:12px;">Caricamento...</p>
+}
+else if (_error is not null)
+{
+    <p style="padding:12px; color:#ff9b9b;">@_error</p>
+}
+else
+{
+    <div style="padding:12px; display:flex; gap:12px; flex-wrap:wrap;">
+        <div style="padding:10px 12px; border:1px solid rgba(255,255,255,0.12); border-radius:12px; color:#f4f8ff;">
+            Totale: <b>@_summaryTotal</b>
+        </div>
+        <div style="padding:10px 12px; border:1px solid rgba(255,255,255,0.12); border-radius:12px; color:#f4f8ff;">
+            Unassigned: <b>@_summaryUnassigned</b>
+        </div>
+        <div style="opacity:0.85; color:#f4f8ff; padding:10px 12px;">
+            (Dashboard summary: ticket assegnati a te + unassigned)
+        </div>
+    </div>
+
+    <div style="padding:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:end;">
+        <div>
+            <label style="color:#f4f8ff; font-size:12px;">Search</label><br />
+            <input @bind="_search" placeholder="title/description/category" />
+        </div>
+
+        <div>
+            <label style="color:#f4f8ff; font-size:12px;">Status</label><br />
+            <select @bind="_status">
+                <option value="">(any)</option>
+                <option value="0">Open</option>
+                <option value="1">InProgress</option>
+                <option value="2">Waiting</option>
+                <option value="3">Resolved</option>
+                <option value="4">Closed</option>
+            </select>
+        </div>
+
+        <div>
+            <label style="color:#f4f8ff; font-size:12px;">Priority</label><br />
+            <select @bind="_priority">
+                <option value="">(any)</option>
+                <option value="0">Low</option>
+                <option value="1">Medium</option>
+                <option value="2">High</option>
+                <option value="3">Critical</option>
+            </select>
+        </div>
+
+        <div>
+            <label style="color:#f4f8ff; font-size:12px;">Assigned to</label><br />
+            <select @bind="_assignedTo">
+                <option value="">(any)</option>
+                @foreach (var a in _assignableAgents)
+                {
+                    <option value="@a">@a</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label style="color:#f4f8ff; font-size:12px;">Created from</label><br />
+            <input type="date" value="@_createdFrom" @onchange="OnCreatedFromChanged" />
+        </div>
+
+        <div>
+            <label style="color:#f4f8ff; font-size:12px;">Created to</label><br />
+            <input type="date" value="@_createdTo" @onchange="OnCreatedToChanged" />
+        </div>
+
+        <div>
+            <label style="color:#f4f8ff; font-size:12px;">Unassigned only</label><br />
+            <input type="checkbox" @bind="_unassignedOnly" />
+        </div>
+
+        <div>
+            <label style="color:#f4f8ff; font-size:12px;">Sort</label><br />
+            <select @bind="_sort">
+                <option value="created_desc">Created desc</option>
+                <option value="updated_desc">Updated desc</option>
+                <option value="priority_desc">Priority desc</option>
+                <option value="urgency_desc">Urgency (due first)</option>
+            </select>
+        </div>
+
+        <button style="padding:8px 12px; border-radius:10px;" @onclick="ApplyFiltersAsync">Apply</button>
+        <button style="padding:8px 12px; border-radius:10px;" @onclick="ResetFiltersAsync">Reset</button>
+    </div>
+
+    <div style="padding:12px; color:#f4f8ff; opacity:0.9;">
+        Risultati: <b>@_total</b> - Pagina <b>@_page</b>
+        <button style="margin-left:12px; padding:6px 10px; border-radius:10px;" @onclick="PrevPageAsync" disabled="@(_page <= 1)">Prev</button>
+        <button style="margin-left:8px; padding:6px 10px; border-radius:10px;" @onclick="NextPageAsync" disabled="@((_page * _pageSize) >= _total)">Next</button>
+    </div>
+
+    <div style="padding:12px;">
+        <table style="width:100%; border-collapse:collapse; color:#f4f8ff;">
+            <thead>
+                <tr style="opacity:0.9; text-align:left;">
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Id</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Title</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Status</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Priority</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Assigned</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Due</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Updated</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var t in _items)
+                {
+                    <tr style="cursor:pointer;" @onclick="() => OpenDetails(t.Id)">
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@t.Id</td>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@t.Title</td>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@StatusLabel(t.Status)</td>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@PriorityLabel(t.Priority)</td>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@((t.AssignedToUserName ?? "(unassigned)"))</td>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@FormatDue(t.DueAt)</td>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@t.UpdatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+
+    private string _search = string.Empty;
+    private string _status = string.Empty;
+    private string _priority = string.Empty;
+    private string _assignedTo = string.Empty;
+    private string _createdFrom = string.Empty;
+    private string _createdTo = string.Empty;
+    private bool _unassignedOnly;
+    private string _sort = "created_desc";
+    private List<string> _assignableAgents = new();
+
+    private int _page = 1;
+    private int _pageSize = 25;
+
+    private int _total;
+    private List<TicketRow> _items = new();
+
+    private int _summaryTotal;
+    private int _summaryUnassigned;
+    private bool IsAgentOrAdmin => Auth.IsInRole("Agent") || Auth.IsInRole("Admin");
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Auth.IsAuthenticated)
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        if (!IsAgentOrAdmin)
+        {
+            Nav.NavigateTo("/tickets", replace: true);
+            return;
+        }
+
+        await LoadAssignableAgentsAsync();
+        await LoadSummaryAsync();
+        await LoadListAsync();
+    }
+
+    private async Task LoadAssignableAgentsAsync()
+    {
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.GetAsync("api/users/agents");
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return;
+            }
+
+            var body = await response.Content.ReadFromJsonAsync<List<string>>();
+            _assignableAgents = (body ?? new List<string>())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch
+        {
+            // Optional UX improvement: if it fails the page still works.
+        }
+    }
+
+    private async Task LoadSummaryAsync()
+    {
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.GetAsync("api/dashboard/summary");
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return;
+            }
+
+            var summary = await response.Content.ReadFromJsonAsync<SummaryDto>();
+            if (summary is not null)
+            {
+                _summaryTotal = summary.Total;
+                _summaryUnassigned = summary.Unassigned;
+            }
+        }
+        catch
+        {
+            // Summary opzionale, l'errore principale arriva da LoadListAsync.
+        }
+    }
+
+    private async Task LoadListAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var url = BuildUrl();
+
+            var response = await client.GetAsync(url);
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Errore: {(int)response.StatusCode} {response.ReasonPhrase}. {await response.Content.ReadAsStringAsync()}";
+                _items = new List<TicketRow>();
+                _total = 0;
+                return;
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<ListResponseDto>();
+            if (payload is null)
+            {
+                _error = "Risposta non valida.";
+                return;
+            }
+
+            _items = payload.Items ?? new List<TicketRow>();
+            _total = payload.Total;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private string BuildUrl()
+    {
+        var queryParts = new List<string>
+        {
+            $"Page={_page}",
+            $"PageSize={_pageSize}",
+            $"Sort={Uri.EscapeDataString(_sort)}"
+        };
+
+        if (!string.IsNullOrWhiteSpace(_search))
+        {
+            queryParts.Add($"Search={Uri.EscapeDataString(_search)}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(_status))
+        {
+            queryParts.Add($"Status={Uri.EscapeDataString(_status)}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(_priority))
+        {
+            queryParts.Add($"Priority={Uri.EscapeDataString(_priority)}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(_assignedTo))
+        {
+            queryParts.Add($"AssignedTo={Uri.EscapeDataString(_assignedTo)}");
+        }
+
+        var createdFrom = BuildCreatedFromParameter(_createdFrom);
+        if (!string.IsNullOrWhiteSpace(createdFrom))
+        {
+            queryParts.Add($"CreatedFrom={Uri.EscapeDataString(createdFrom)}");
+        }
+
+        var createdTo = BuildCreatedToParameter(_createdTo);
+        if (!string.IsNullOrWhiteSpace(createdTo))
+        {
+            queryParts.Add($"CreatedTo={Uri.EscapeDataString(createdTo)}");
+        }
+
+        if (_unassignedOnly)
+        {
+            queryParts.Add("UnassignedOnly=true");
+        }
+
+        return $"api/tickets/all?{string.Join("&", queryParts)}";
+    }
+
+    private async Task ApplyFiltersAsync()
+    {
+        _page = 1;
+        await LoadListAsync();
+    }
+
+    private void OnCreatedFromChanged(ChangeEventArgs e)
+    {
+        _createdFrom = e?.Value?.ToString() ?? string.Empty;
+    }
+
+    private void OnCreatedToChanged(ChangeEventArgs e)
+    {
+        _createdTo = e?.Value?.ToString() ?? string.Empty;
+    }
+
+    private async Task ResetFiltersAsync()
+    {
+        _search = string.Empty;
+        _status = string.Empty;
+        _priority = string.Empty;
+        _assignedTo = string.Empty;
+        _createdFrom = string.Empty;
+        _createdTo = string.Empty;
+        _unassignedOnly = false;
+        _sort = "created_desc";
+        _page = 1;
+        await LoadListAsync();
+    }
+
+    private async Task PrevPageAsync()
+    {
+        if (_page <= 1)
+        {
+            return;
+        }
+
+        _page--;
+        await LoadListAsync();
+    }
+
+    private async Task NextPageAsync()
+    {
+        if ((_page * _pageSize) >= _total)
+        {
+            return;
+        }
+
+        _page++;
+        await LoadListAsync();
+    }
+
+    private void OpenDetails(int id)
+    {
+        Nav.NavigateTo($"/tickets/{id}");
+    }
+
+    private static string FormatDue(DateTime? dueAt)
+    {
+        if (dueAt is null)
+        {
+            return "-";
+        }
+
+        var local = dueAt.Value.ToLocalTime();
+        var now = DateTime.Now;
+        var label = local < now
+            ? "OVERDUE"
+            : (local - now).TotalHours <= 24
+                ? "DUE SOON"
+                : "ON TRACK";
+
+        return $"{local:yyyy-MM-dd HH:mm} ({label})";
+    }
+
+    private bool HandleUnauthorized(HttpResponseMessage response)
+    {
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            Auth.Clear();
+            Nav.NavigateTo("/login", replace: true);
+            return true;
+        }
+
+        if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            Nav.NavigateTo("/tickets", replace: true);
+            return true;
+        }
+
+        return false;
+    }
+
+    private HttpClient CreateAuthorizedClient()
+    {
+        var client = HttpClientFactory.CreateClient("Api");
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", Auth.Token);
+        return client;
+    }
+
+    private static string StatusLabel(int status) => status switch
+    {
+        0 => "Open",
+        1 => "InProgress",
+        2 => "Waiting",
+        3 => "Resolved",
+        4 => "Closed",
+        _ => "?"
+    };
+
+    private static string PriorityLabel(int priority) => priority switch
+    {
+        0 => "Low",
+        1 => "Medium",
+        2 => "High",
+        3 => "Critical",
+        _ => "?"
+    };
+
+    private static string? BuildCreatedFromParameter(string value)
+    {
+        if (!DateOnly.TryParse(value, out var date))
+        {
+            return null;
+        }
+
+        return date.ToDateTime(TimeOnly.MinValue).ToString("O");
+    }
+
+    private static string? BuildCreatedToParameter(string value)
+    {
+        if (!DateOnly.TryParse(value, out var date))
+        {
+            return null;
+        }
+
+        return date.ToDateTime(new TimeOnly(23, 59, 59)).ToString("O");
+    }
+
+    private sealed class SummaryDto
+    {
+        public int Total { get; set; }
+        public int Unassigned { get; set; }
+    }
+
+    private sealed class ListResponseDto
+    {
+        public List<TicketRow>? Items { get; set; }
+        public int Total { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+    }
+
+    private sealed class TicketRow
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public int Status { get; set; }
+        public int Priority { get; set; }
+        public string? AssignedToUserName { get; set; }
+        public DateTime? DueAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+    }
+}

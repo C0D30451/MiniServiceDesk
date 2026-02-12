@@ -1,0 +1,335 @@
+@page "/admin/config"
+@rendermode InteractiveServer
+
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager Nav
+@inject MiniServiceDesk.Web.Services.AuthState Auth
+
+<h3 style="padding:12px; color:#f4f8ff;">Admin Config</h3>
+
+@if (!Auth.IsAuthenticated)
+{
+    <p style="padding:12px;">Devi fare login.</p>
+}
+else if (_loading)
+{
+    <p style="padding:12px;">Caricamento...</p>
+}
+else
+{
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <p style="padding:12px; color:#ff9b9b;">@_error</p>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_info))
+    {
+        <p style="padding:12px; color:#9be7b5;">@_info</p>
+    }
+
+    <section style="padding:12px; border:1px solid rgba(255,255,255,0.12); border-radius:12px; margin-bottom:14px;">
+        <h5 style="color:#f4f8ff;">Create user</h5>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:end;">
+            <div>
+                <label style="color:#f4f8ff; font-size:12px;">Username</label><br />
+                <input @bind="_newUserName" placeholder="es: mario.rossi" />
+            </div>
+            <div>
+                <label style="color:#f4f8ff; font-size:12px;">Password</label><br />
+                <input type="password" @bind="_newPassword" />
+            </div>
+            <div>
+                <label style="color:#f4f8ff; font-size:12px;">Role</label><br />
+                <select @bind="_newRole">
+                    @foreach (var role in Roles)
+                    {
+                        <option value="@role">@role</option>
+                    }
+                </select>
+            </div>
+            <button style="padding:8px 12px; border-radius:10px;" @onclick="CreateUserAsync" disabled="@_submitting">Create</button>
+            <button style="padding:8px 12px; border-radius:10px;" @onclick="LoadUsersAsync" disabled="@_submitting">Refresh</button>
+        </div>
+    </section>
+
+    <section style="padding:12px;">
+        <table style="width:100%; border-collapse:collapse; color:#f4f8ff;">
+            <thead>
+                <tr style="opacity:0.9; text-align:left;">
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Username</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Current role</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Change role</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.12);">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var u in _users)
+                {
+                    <tr>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@u.UserName</td>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">@CurrentRoleLabel(u)</td>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">
+                            <select @bind="u.SelectedRole">
+                                @foreach (var role in Roles)
+                                {
+                                    <option value="@role">@role</option>
+                                }
+                            </select>
+                        </td>
+                        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">
+                            <button style="padding:6px 10px; border-radius:8px;" @onclick="() => ChangeRoleAsync(u)" disabled="@_submitting">Update role</button>
+                            <button style="margin-left:8px; padding:6px 10px; border-radius:8px;" @onclick="() => DeleteUserAsync(u)" disabled="@_submitting || IsCurrentUser(u)">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+}
+
+@code {
+    private static readonly string[] Roles = ["User", "Agent", "Admin"];
+
+    private bool _loading = true;
+    private bool _submitting;
+    private string? _error;
+    private string? _info;
+    private string _newUserName = string.Empty;
+    private string _newPassword = string.Empty;
+    private string _newRole = "User";
+
+    private List<UserRow> _users = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Auth.IsAuthenticated)
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        if (!Auth.IsInRole("Admin"))
+        {
+            Nav.NavigateTo("/tickets", replace: true);
+            return;
+        }
+
+        await LoadUsersAsync();
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        _loading = true;
+        _error = null;
+        _info = null;
+
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.GetAsync("api/users");
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Errore caricamento utenti ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            var rows = await response.Content.ReadFromJsonAsync<List<UserRow>>() ?? new List<UserRow>();
+            foreach (var row in rows)
+            {
+                row.SelectedRole = row.Roles.FirstOrDefault(r => Roles.Contains(r)) ?? "User";
+            }
+
+            _users = rows
+                .OrderBy(u => u.UserName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task CreateUserAsync()
+    {
+        if (_submitting)
+        {
+            return;
+        }
+
+        _error = null;
+        _info = null;
+
+        _submitting = true;
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.PostAsJsonAsync("api/users", new
+            {
+                UserName = (_newUserName ?? string.Empty).Trim(),
+                Password = (_newPassword ?? string.Empty).Trim(),
+                Role = _newRole
+            });
+
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Create user fallita ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            _newUserName = string.Empty;
+            _newPassword = string.Empty;
+            _newRole = "User";
+            _info = "Utente creato.";
+            await LoadUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private async Task ChangeRoleAsync(UserRow user)
+    {
+        if (_submitting)
+        {
+            return;
+        }
+
+        _error = null;
+        _info = null;
+        _submitting = true;
+
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.PutAsJsonAsync($"api/users/{Uri.EscapeDataString(user.UserName)}/role", new
+            {
+                Role = user.SelectedRole
+            });
+
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Cambio ruolo fallito ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            _info = $"Ruolo aggiornato per {user.UserName}.";
+            await LoadUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private async Task DeleteUserAsync(UserRow user)
+    {
+        if (_submitting || IsCurrentUser(user))
+        {
+            return;
+        }
+
+        _error = null;
+        _info = null;
+        _submitting = true;
+
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.DeleteAsync($"api/users/{Uri.EscapeDataString(user.UserName)}");
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Delete user fallita ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            _info = $"Utente {user.UserName} eliminato.";
+            await LoadUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private bool HandleUnauthorized(HttpResponseMessage response)
+    {
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            Auth.Clear();
+            Nav.NavigateTo("/login", replace: true);
+            return true;
+        }
+
+        if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            Nav.NavigateTo("/tickets", replace: true);
+            return true;
+        }
+
+        return false;
+    }
+
+    private HttpClient CreateAuthorizedClient()
+    {
+        var client = HttpClientFactory.CreateClient("Api");
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", Auth.Token);
+        return client;
+    }
+
+    private string CurrentRoleLabel(UserRow user)
+    {
+        if (user.Roles is null || user.Roles.Count == 0)
+        {
+            return "-";
+        }
+
+        return string.Join(", ", user.Roles);
+    }
+
+    private bool IsCurrentUser(UserRow user) =>
+        string.Equals(user.UserName, Auth.UserName, StringComparison.OrdinalIgnoreCase);
+
+    private sealed class UserRow
+    {
+        public string UserName { get; set; } = string.Empty;
+        public List<string> Roles { get; set; } = new();
+        public string SelectedRole { get; set; } = "User";
+    }
+}

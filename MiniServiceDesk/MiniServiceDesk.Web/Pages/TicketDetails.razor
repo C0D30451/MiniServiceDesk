@@ -1,8 +1,20 @@
 @page "/tickets/{Id:int}"
 @inject IHttpClientFactory HttpClientFactory
+@inject MiniServiceDesk.Web.Services.AuthState Auth
+@inject NavigationManager Nav
 
 <section class="page-shell">
     <h3 class="page-title">Ticket details</h3>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <p class="panel" style="color:#ff9b9b">@_error</p>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_info))
+    {
+        <p class="panel" style="color:#9be7b5">@_info</p>
+    }
 
     @if (_ticket is null)
     {
@@ -22,10 +34,188 @@
                 <span>@_ticket.Category</span>
                 <span class="meta-dot">•</span>
                 <span>Created @FormatDate(_ticket.CreatedAt)</span>
+                @if (_ticket.DueAt is not null)
+                {
+                    <span class="meta-dot">•</span>
+                    <span>SLA @GetDueLabel(_ticket.DueAt.Value)</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(_ticket.AssignedToUserName))
+                {
+                    <span class="meta-dot">•</span>
+                    <span>Assigned to @_ticket.AssignedToUserName</span>
+                }
             </div>
 
             <p class="detail-description">@_ticket.Description</p>
         </article>
+
+        @if (IsAgentOrAdmin)
+        {
+            <section class="panel" style="margin-top:14px">
+                <h5>SLA</h5>
+
+                <div>
+                    <label style="color:#f4f8ff">Due date</label><br />
+                    <InputDate @bind-Value="_dueAtLocal" Type="InputDateType.DateTimeLocal" />
+                    <button type="button" style="margin-left:8px" @onclick="UpdateDueDateAsync" disabled="@_isUpdatingDueDate">Update due date</button>
+                    <button type="button" style="margin-left:8px" @onclick="ClearDueDateAsync" disabled="@_isUpdatingDueDate">Clear</button>
+                </div>
+            </section>
+        }
+
+        <section class="panel" style="margin-top:14px">
+            <h5>Attachments</h5>
+
+            <InputFile OnChange="OnAttachmentSelectedAsync" />
+            @if (!string.IsNullOrWhiteSpace(_attachmentError))
+            {
+                <p style="color:#ff9b9b; margin-top:6px">@_attachmentError</p>
+            }
+
+            @if (_attachments.Count == 0)
+            {
+                <p style="opacity:.85; margin-top:10px">No attachments yet.</p>
+            }
+            else
+            {
+                @foreach (var a in _attachments)
+                {
+                    <article style="border-top:1px solid rgba(255,255,255,.12); padding:10px 0;">
+                        <div style="display:flex; justify-content:space-between; gap:10px; opacity:.9; font-size:.92rem;">
+                            <strong>@a.OriginalFileName</strong>
+                            <span>@FormatDate(a.CreatedAt)</span>
+                        </div>
+                        <p style="margin:4px 0 0; opacity:.9">
+                            @(FormatBytes(a.FileSizeBytes)) • @a.ContentType • by @(a.UploadedByUserName ?? "unknown")
+                        </p>
+                        <p style="margin:4px 0 0;">
+                            <a href="@($"api/tickets/{Id}/attachments/{a.Id}/download")" target="_blank">Download</a>
+                        </p>
+                    </article>
+                }
+            }
+        </section>
+
+        <section class="panel" style="margin-top:14px">
+            <h5>Comments</h5>
+
+            @if (_comments.Count == 0)
+            {
+                <p style="opacity:.85">No comments yet.</p>
+            }
+            else
+            {
+                @foreach (var c in _comments)
+                {
+                    <article style="border-top:1px solid rgba(255,255,255,.12); padding:10px 0;">
+                        <div style="display:flex; justify-content:space-between; gap:10px; opacity:.9; font-size:.92rem;">
+                            <strong>@c.AuthorUserName</strong>
+                            <span>@FormatDate(c.CreatedAt)</span>
+                        </div>
+                        <p style="margin:6px 0 0; white-space:pre-wrap">@c.Text</p>
+                    </article>
+                }
+            }
+
+            <div style="margin-top:10px">
+                <label style="color:#f4f8ff">Add comment</label><br />
+                <textarea @bind="_commentText" rows="4" cols="70" maxlength="2000"></textarea>
+            </div>
+            <div style="margin-top:8px">
+                <button type="button" @onclick="AddCommentAsync" disabled="@_isSubmittingComment">Add comment</button>
+            </div>
+        </section>
+
+        <section class="panel" style="margin-top:14px">
+            <h5>Timeline</h5>
+
+            @if (_events.Count == 0)
+            {
+                <p style="opacity:.85">No events yet.</p>
+            }
+            else
+            {
+                @foreach (var e in _events)
+                {
+                    <article style="border-top:1px solid rgba(255,255,255,.12); padding:10px 0;">
+                        <div style="display:flex; justify-content:space-between; gap:10px; opacity:.9; font-size:.92rem;">
+                            <strong>@e.EventType</strong>
+                            <span>@FormatDate(e.CreatedAt)</span>
+                        </div>
+                        <p style="margin:6px 0 0">@e.Message</p>
+                        @if (!string.IsNullOrWhiteSpace(e.ActorUserName))
+                        {
+                            <p style="margin:4px 0 0; opacity:.85">by @e.ActorUserName</p>
+                        }
+                    </article>
+                }
+            }
+        </section>
+
+        @if (IsAgentOrAdmin)
+        {
+            <section class="panel" style="margin-top:14px">
+                <h5>Agent actions</h5>
+
+                <div>
+                    <label style="color:#f4f8ff">Assign to user</label><br />
+                    <select @bind="_assignUserName">
+                        <option value="">(select user)</option>
+                        @foreach (var assignee in _assignableUsers)
+                        {
+                            <option value="@assignee">@assignee</option>
+                        }
+                    </select>
+                    <button type="button" style="margin-left:8px" @onclick="AssignAsync" disabled="@_isSubmittingAssign">Assign</button>
+                </div>
+
+                @if (_assignableUsers.Count == 0)
+                {
+                    <p style="margin-top:8px; opacity:.85">No users available.</p>
+                }
+
+                <div style="margin-top:12px">
+                    <label style="color:#f4f8ff">Change status</label><br />
+                    <select @bind="_newStatus">
+                        <option value="0">Open</option>
+                        <option value="1">In Progress</option>
+                        <option value="2">Waiting</option>
+                        <option value="3">Resolved</option>
+                        <option value="4">Closed</option>
+                    </select>
+                </div>
+
+                @if (RequiresStatusReason)
+                {
+                    <div style="margin-top:8px">
+                        <label style="color:#f4f8ff">Reason (required for Critical -> Waiting)</label><br />
+                        <textarea @bind="_statusReason" rows="3" cols="70"></textarea>
+                    </div>
+                }
+
+                <div style="margin-top:8px">
+                    <button type="button" @onclick="ChangeStatusAsync" disabled="@_isSubmittingStatus">Update status</button>
+                </div>
+            </section>
+        }
+
+        @if (IsAdmin)
+        {
+            <section class="panel" style="margin-top:14px">
+                <h5>Admin actions</h5>
+
+                @if (!_confirmDelete)
+                {
+                    <button type="button" style="background:#9a2a2a; color:white;" @onclick="PrepareDelete">Delete ticket</button>
+                }
+                else
+                {
+                    <p style="margin-top:8px;">Confirm delete ticket #@_ticket.Id?</p>
+                    <button type="button" style="background:#9a2a2a; color:white;" @onclick="DeleteTicketAsync" disabled="@_isDeleting">Confirm delete</button>
+                    <button type="button" style="margin-left:8px;" @onclick="CancelDelete">Cancel</button>
+                }
+            </section>
+        }
 
         <p class="back-link-wrap"><a href="/tickets">Back to tickets</a></p>
     }
@@ -35,11 +225,572 @@
     [Parameter] public int Id { get; set; }
 
     private TicketDto? _ticket;
+    private List<CommentDto> _comments = new();
+    private List<TicketEventDto> _events = new();
+    private List<TicketAttachmentDto> _attachments = new();
+    private List<string> _assignableUsers = new();
+    private string _commentText = string.Empty;
+    private string _assignUserName = string.Empty;
+    private string _statusReason = string.Empty;
+    private DateTime? _dueAtLocal;
+    private string? _error;
+    private string? _info;
+    private string? _attachmentError;
+    private int _newStatus;
+    private bool _isSubmittingComment;
+    private bool _isSubmittingAssign;
+    private bool _isSubmittingStatus;
+    private bool _isUpdatingDueDate;
+    private bool _isDeleting;
+    private bool _confirmDelete;
+
+    private bool IsAgentOrAdmin => Auth.IsInRole("Agent") || Auth.IsInRole("Admin");
+    private bool IsAdmin => Auth.IsInRole("Admin");
+    private bool RequiresStatusReason => _ticket?.Priority == 3 && _newStatus == 2;
 
     protected override async Task OnParametersSetAsync()
     {
+        if (!Auth.IsAuthenticated)
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        if (IsAgentOrAdmin)
+        {
+            await LoadAssignableUsersAsync();
+        }
+
+        await LoadDetailsAsync();
+    }
+
+    private async Task LoadAssignableUsersAsync()
+    {
+        try
+        {
+            var users = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var client = CreateAuthorizedClient();
+
+            var agentResponse = await client.GetAsync("api/users/agents");
+            if (agentResponse.IsSuccessStatusCode)
+            {
+                var list = await agentResponse.Content.ReadFromJsonAsync<List<string>>() ?? new List<string>();
+                foreach (var item in list.Where(x => !string.IsNullOrWhiteSpace(x)))
+                {
+                    users.Add(item);
+                }
+            }
+
+            var allUsersResponse = await client.GetAsync("api/users");
+            if (allUsersResponse.IsSuccessStatusCode)
+            {
+                var rows = await allUsersResponse.Content.ReadFromJsonAsync<List<UserRowDto>>() ?? new List<UserRowDto>();
+                foreach (var row in rows)
+                {
+                    if (!string.IsNullOrWhiteSpace(row.UserName))
+                    {
+                        users.Add(row.UserName);
+                    }
+                }
+            }
+
+            _assignableUsers = users.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+        catch
+        {
+            // Optional enhancement, keep page usable.
+        }
+    }
+
+    private async Task LoadDetailsAsync()
+    {
+        _error = null;
+        _info = null;
+        _attachmentError = null;
+
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.GetAsync($"api/tickets/{Id}/details");
+
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                _error = "Ticket not found.";
+                _ticket = null;
+                _comments = new();
+                _events = new();
+                _attachments = new();
+                return;
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                _error = "You are not allowed to open this ticket.";
+                _ticket = null;
+                _comments = new();
+                _events = new();
+                _attachments = new();
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var details = await response.Content.ReadAsStringAsync();
+                _error = $"API error ({(int)response.StatusCode}): {details}";
+                return;
+            }
+
+            var body = await response.Content.ReadFromJsonAsync<TicketDetailsResponse>();
+            if (body is null)
+            {
+                _error = "Invalid ticket details response.";
+                return;
+            }
+
+            _ticket = body.Ticket;
+            _comments = body.Comments ?? new();
+            _events = body.Events ?? new();
+            _attachments = body.Attachments ?? new();
+
+            _newStatus = _ticket.Status;
+            _confirmDelete = false;
+            _dueAtLocal = _ticket.DueAt?.ToLocalTime();
+
+            if (!string.IsNullOrWhiteSpace(_ticket.AssignedToUserName) &&
+                !_assignableUsers.Contains(_ticket.AssignedToUserName, StringComparer.OrdinalIgnoreCase))
+            {
+                _assignableUsers.Add(_ticket.AssignedToUserName);
+                _assignableUsers = _assignableUsers.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error loading details: {ex.Message}";
+        }
+    }
+
+    private async Task AddCommentAsync()
+    {
+        if (_ticket is null || _isSubmittingComment)
+        {
+            return;
+        }
+
+        _error = null;
+        _info = null;
+        var text = (_commentText ?? string.Empty).Trim();
+        if (text.Length == 0)
+        {
+            _error = "Comment is required.";
+            return;
+        }
+
+        _isSubmittingComment = true;
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.PostAsJsonAsync($"api/tickets/{Id}/comments", new { Text = text });
+
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Comment failed ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            _commentText = string.Empty;
+            _info = "Comment added.";
+            await LoadDetailsAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error while adding comment: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmittingComment = false;
+        }
+    }
+
+    private async Task AssignAsync()
+    {
+        if (_ticket is null || _isSubmittingAssign)
+        {
+            return;
+        }
+
+        _error = null;
+        _info = null;
+
+        var userName = (_assignUserName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(userName))
+        {
+            _error = "Select a user.";
+            return;
+        }
+
+        _isSubmittingAssign = true;
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.PostAsJsonAsync($"api/tickets/{Id}/assign", new { AssigneeUserName = userName });
+
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Assignment failed ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            _info = "Ticket assigned.";
+            await LoadDetailsAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error while assigning: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmittingAssign = false;
+        }
+    }
+
+    private async Task ChangeStatusAsync()
+    {
+        if (_ticket is null || _isSubmittingStatus)
+        {
+            return;
+        }
+
+        _error = null;
+        _info = null;
+
+        if (RequiresStatusReason && (_statusReason ?? string.Empty).Trim().Length < 5)
+        {
+            _error = "Critical -> Waiting requires a reason (min 5 chars).";
+            return;
+        }
+
+        _isSubmittingStatus = true;
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.PostAsJsonAsync($"api/tickets/{Id}/status", new
+            {
+                NewStatus = _newStatus,
+                Comment = string.IsNullOrWhiteSpace(_statusReason) ? null : _statusReason.Trim()
+            });
+
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Status update failed ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            _statusReason = string.Empty;
+            _info = "Status updated.";
+            await LoadDetailsAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error updating status: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmittingStatus = false;
+        }
+    }
+
+    private async Task UpdateDueDateAsync()
+    {
+        if (_ticket is null || _isUpdatingDueDate)
+        {
+            return;
+        }
+
+        _error = null;
+        _info = null;
+        _isUpdatingDueDate = true;
+
+        try
+        {
+            if (_dueAtLocal is null)
+            {
+                _error = "Invalid due date.";
+                return;
+            }
+
+            var payload = new { DueAt = DateTime.SpecifyKind(_dueAtLocal.Value, DateTimeKind.Local).ToUniversalTime() };
+            var request = new HttpRequestMessage(new HttpMethod("PATCH"), $"api/tickets/{Id}/due")
+            {
+                Content = JsonContent.Create(payload)
+            };
+
+            var client = CreateAuthorizedClient();
+            var response = await client.SendAsync(request);
+
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Due date update failed ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            _info = "Due date updated.";
+            await LoadDetailsAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error updating due date: {ex.Message}";
+        }
+        finally
+        {
+            _isUpdatingDueDate = false;
+        }
+    }
+
+    private async Task ClearDueDateAsync()
+    {
+        _dueAtLocal = null;
+        await SendClearDueDateAsync();
+    }
+
+    private async Task SendClearDueDateAsync()
+    {
+        if (_ticket is null || _isUpdatingDueDate)
+        {
+            return;
+        }
+
+        _error = null;
+        _info = null;
+        _isUpdatingDueDate = true;
+
+        try
+        {
+            var request = new HttpRequestMessage(new HttpMethod("PATCH"), $"api/tickets/{Id}/due")
+            {
+                Content = JsonContent.Create(new { DueAt = (DateTime?)null })
+            };
+
+            var client = CreateAuthorizedClient();
+            var response = await client.SendAsync(request);
+
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Due date clear failed ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            _info = "Due date cleared.";
+            await LoadDetailsAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error clearing due date: {ex.Message}";
+        }
+        finally
+        {
+            _isUpdatingDueDate = false;
+        }
+    }
+
+    private async Task OnAttachmentSelectedAsync(InputFileChangeEventArgs args)
+    {
+        if (_ticket is null)
+        {
+            return;
+        }
+
+        _error = null;
+        _info = null;
+        _attachmentError = null;
+
+        var file = args.File;
+        if (file is null)
+        {
+            return;
+        }
+
+        const long maxSize = 10 * 1024 * 1024;
+        if (file.Size > maxSize)
+        {
+            _attachmentError = "File too large. Max 10 MB.";
+            return;
+        }
+
+        try
+        {
+            var client = CreateAuthorizedClient();
+            using var content = new MultipartFormDataContent();
+            await using var stream = file.OpenReadStream(maxSize);
+            using var fileContent = new StreamContent(stream);
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+                string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType);
+            content.Add(fileContent, "file", file.Name);
+
+            var response = await client.PostAsync($"api/tickets/{Id}/attachments", content);
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _attachmentError = $"Upload failed ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            _info = "Attachment uploaded.";
+            await LoadDetailsAsync();
+        }
+        catch (Exception ex)
+        {
+            _attachmentError = $"Upload error: {ex.Message}";
+        }
+    }
+
+    private void PrepareDelete()
+    {
+        _confirmDelete = true;
+        _error = null;
+        _info = null;
+    }
+
+    private void CancelDelete()
+    {
+        _confirmDelete = false;
+    }
+
+    private async Task DeleteTicketAsync()
+    {
+        if (!IsAdmin || _ticket is null || _isDeleting)
+        {
+            return;
+        }
+
+        _error = null;
+        _info = null;
+        _isDeleting = true;
+
+        try
+        {
+            var client = CreateAuthorizedClient();
+            var response = await client.DeleteAsync($"api/tickets/{Id}");
+
+            if (HandleUnauthorized(response))
+            {
+                return;
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                _error = "Only Admin can delete tickets.";
+                return;
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                _error = "Ticket not found.";
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Delete failed ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            Nav.NavigateTo("/tickets/all", replace: true);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error deleting ticket: {ex.Message}";
+        }
+        finally
+        {
+            _isDeleting = false;
+        }
+    }
+
+    private bool HandleUnauthorized(HttpResponseMessage response)
+    {
+        if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized)
+        {
+            return false;
+        }
+
+        Auth.Clear();
+        Nav.NavigateTo("/login", replace: true);
+        return true;
+    }
+
+    private HttpClient CreateAuthorizedClient()
+    {
         var client = HttpClientFactory.CreateClient("Api");
-        _ticket = await client.GetFromJsonAsync<TicketDto>($"api/tickets/{Id}");
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", Auth.Token);
+        return client;
+    }
+
+    private static string GetDueLabel(DateTime dueAtUtc)
+    {
+        var now = DateTime.UtcNow;
+        if (dueAtUtc < now)
+        {
+            return $"OVERDUE ({FormatDate(dueAtUtc)})";
+        }
+
+        var delta = dueAtUtc - now;
+        if (delta.TotalHours <= 8)
+        {
+            return $"due soon ({FormatDate(dueAtUtc)})";
+        }
+
+        return $"due {FormatDate(dueAtUtc)}";
+    }
+
+    private static string FormatBytes(long value)
+    {
+        const double kb = 1024;
+        const double mb = 1024 * 1024;
+        if (value >= mb)
+        {
+            return $"{value / mb:0.00} MB";
+        }
+
+        if (value >= kb)
+        {
+            return $"{value / kb:0.00} KB";
+        }
+
+        return $"{value} B";
     }
 
     private static string StatusLabel(int status) => status switch
@@ -90,15 +841,59 @@
         return dt.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
     }
 
-    private class TicketDto
+    private sealed class TicketDetailsResponse
+    {
+        public TicketDto Ticket { get; set; } = new();
+        public List<CommentDto>? Comments { get; set; }
+        public List<TicketEventDto>? Events { get; set; }
+        public List<TicketAttachmentDto>? Attachments { get; set; }
+    }
+
+    private sealed class TicketDto
     {
         public int Id { get; set; }
-        public string Title { get; set; } = "";
-        public string Description { get; set; } = "";
-        public string Category { get; set; } = "";
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
         public int Priority { get; set; }
         public int Status { get; set; }
+        public string? AssignedToUserName { get; set; }
+        public DateTime? AssignedAt { get; set; }
+        public DateTime? DueAt { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+    }
+
+    private sealed class CommentDto
+    {
+        public int Id { get; set; }
+        public string Text { get; set; } = string.Empty;
+        public string AuthorUserName { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+    }
+
+    private sealed class TicketEventDto
+    {
+        public int Id { get; set; }
+        public string EventType { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public string? ActorUserName { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    private sealed class TicketAttachmentDto
+    {
+        public int Id { get; set; }
+        public string OriginalFileName { get; set; } = string.Empty;
+        public string ContentType { get; set; } = "application/octet-stream";
+        public long FileSizeBytes { get; set; }
+        public string? UploadedByUserName { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    private sealed class UserRowDto
+    {
+        public string UserName { get; set; } = string.Empty;
+        public List<string>? Roles { get; set; }
     }
 }
