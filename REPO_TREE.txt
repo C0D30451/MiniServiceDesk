@@ -47,7 +47,6 @@ MiniServiceDesk/MiniServiceDesk.Api/Migrations/20260210233157_AddSlaAuditNotific
 MiniServiceDesk/MiniServiceDesk.Api/Migrations/20260210233157_AddSlaAuditNotificationsAttachments.cs
 MiniServiceDesk/MiniServiceDesk.Api/Migrations/AppDbContextModelSnapshot.cs
 MiniServiceDesk/MiniServiceDesk.Api/MiniServiceDesk.Api.csproj
-MiniServiceDesk/MiniServiceDesk.Api/MiniServiceDesk.Api.http
 MiniServiceDesk/MiniServiceDesk.Api/Program.cs
 MiniServiceDesk/MiniServiceDesk.Api/Properties/launchSettings.json
 MiniServiceDesk/MiniServiceDesk.Api/Services/EmailNotificationOptions.cs
@@ -82,12 +81,9 @@ MiniServiceDesk/MiniServiceDesk.Web/Pages/Notifications.razor
 MiniServiceDesk/MiniServiceDesk.Web/Pages/TicketDetails.razor
 MiniServiceDesk/MiniServiceDesk.Web/Pages/Tickets.razor
 MiniServiceDesk/MiniServiceDesk.Web/Pages/Tickets.razor.css
-MiniServiceDesk/MiniServiceDesk.Web/Pages/_Host.cshtml
 MiniServiceDesk/MiniServiceDesk.Web/Pages/_Imports.razor
-MiniServiceDesk/MiniServiceDesk.Web/Pages/_Layout.cshtml
 MiniServiceDesk/MiniServiceDesk.Web/Program.cs
 MiniServiceDesk/MiniServiceDesk.Web/Properties/launchSettings.json
-MiniServiceDesk/MiniServiceDesk.Web/Services/AuthHeaderHandler.cs
 MiniServiceDesk/MiniServiceDesk.Web/Services/AuthState.cs
 MiniServiceDesk/MiniServiceDesk.Web/appsettings.Development.json
 MiniServiceDesk/MiniServiceDesk.Web/appsettings.json
